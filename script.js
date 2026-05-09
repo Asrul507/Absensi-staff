@@ -194,8 +194,10 @@ async function loadStatusAbsensi() {
 function renderStatusAndAction(res) {
   const statusBox   = document.getElementById("status-absensi-box");
   const actionBox   = document.getElementById("absensi-action-box");
-  const sudahMasuk  = !!res.sudahMasuk;
-  const sudahPulang = !!res.sudahPulang;
+  
+  // PERBAIKAN: Cek field API dengan multiple nama kemungkinan
+  const sudahMasuk  = !!(res.sudahMasuk || res.masuk || res.waktuMasuk);
+  const sudahPulang = !!(res.sudahPulang || res.pulang || res.waktuPulang);
   const waktuMasuk  = res.waktuMasuk  ? formatDateTime(res.waktuMasuk)  : null;
   const waktuPulang = res.waktuPulang ? formatDateTime(res.waktuPulang) : null;
 
