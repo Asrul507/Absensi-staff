@@ -1,44 +1,42 @@
-// =============================================
-// ABSENSI STAFF - Living Plaza Balikpapan
-// script.js - Frontend Logic
-// =============================================
+// ============================================
+// GENIUS PRESENCE - script.js (Fixed)
+// ============================================
 
 const API_URL = "https://script.google.com/macros/s/AKfycby9bz31OAyjCsORDtbkxdY7yUUnB4lmxmxrJdLE0g3meXm6TVSN9tkLhXCQWjgM8xS5/exec";
 
 let currentUser = null;
 let cameraStream = null;
 let capturedPhotoBase64 = null;
-let qrScanner = null;
 let currentPage = "absensi";
 
-// =============================================
+// ============================================
 // INIT
-// =============================================
+// ============================================
 document.addEventListener("DOMContentLoaded", () => {
   const saved = localStorage.getItem("currentUser");
   if (saved) {
-    currentUser = JSON.parse(saved);
-    showApp();
+    try {
+      currentUser = JSON.parse(saved);
+      showApp();
+    } catch(e) {
+      localStorage.removeItem("currentUser");
+      showLogin();
+    }
   } else {
     showLogin();
   }
 });
 
-// =============================================
-// LOGIN
-// =============================================
-async function login(e) {
-  if (e) e.preventDefault();
-  const email = document.getElementById("username").value.trim();
-  const password = document.getElementById("password").value.trim();
+// ============================================
+// LOGIN / LOGOUT
+// ============================================
+async function login() {
+  const email    = (document.getElementById("username").value || "").trim();
+  const password = (document.getElementById("password").value || "").trim();
 
   if (!email || !password) return showToast("Email dan password wajib diisi", "error");
 
-  const btn = document.getElementById("loginBtn");
-  btn.classList.add("loading");
-  btn.querySelector(".btn-text").textContent = "Memproses...";
   showLoading(true);
-
   try {
     const res = await fetchAPI({ action: "login", email, password });
     if (res.success) {
@@ -47,20 +45,15 @@ async function login(e) {
       showToast("Selamat datang, " + currentUser.nama + "!", "success");
       showApp();
     } else {
-      showToast(res.message, "error");
+      showToast(res.message || "Login gagal", "error");
     }
   } catch (err) {
     showToast("Gagal terhubung ke server", "error");
   } finally {
-    btn.classList.remove("loading");
-    btn.querySelector(".btn-text").textContent = "Masuk";
     showLoading(false);
   }
 }
 
-// =============================================
-// LOGOUT
-// =============================================
 function logout() {
   if (!confirm("Yakin ingin keluar?")) return;
   stopCamera();
@@ -70,30 +63,29 @@ function logout() {
   showToast("Berhasil keluar", "info");
 }
 
-// =============================================
+// ============================================
 // SHOW LOGIN / APP
-// =============================================
+// ============================================
 function showLogin() {
   document.getElementById("loginPage").style.display = "flex";
-  document.getElementById("appPage").style.display = "none";
+  document.getElementById("appPage").style.display   = "none";
 }
 
 function showApp() {
   document.getElementById("loginPage").style.display = "none";
-  document.getElementById("appPage").style.display = "block";
-  document.getElementById("userName").textContent = currentUser.nama;
+  document.getElementById("appPage").style.display   = "block";
+  document.getElementById("userName").textContent    = currentUser.nama;
   renderSidebar();
   renderBottomNav();
   navigateTo("absensi");
 }
 
-// =============================================
+// ============================================
 // SIDEBAR
-// =============================================
+// ============================================
 function renderSidebar() {
   const isAdmin = currentUser.role === "Admin";
-  const sidebar = document.getElementById("sidebar");
-  sidebar.innerHTML = `
+  document.getElementById("sidebar").innerHTML = `
     <div class="sidebar-header">
       <div class="sidebar-logo">🏢</div>
       <div>
@@ -114,115 +106,111 @@ function renderSidebar() {
       <a class="sidebar-link" onclick="navigateTo('pengajuan')"><i class="fa-solid fa-file-alt"></i> Pengajuan Izin</a>
       <a class="sidebar-link" onclick="navigateTo('profil')"><i class="fa-solid fa-user-circle"></i> Profil</a>
       ${isAdmin ? `
-      <div class="sidebar-divider">Admin</div>
+      <div class="sidebar-divider">Admin Panel</div>
       <a class="sidebar-link" onclick="navigateTo('monitoring')"><i class="fa-solid fa-chart-line"></i> Monitoring</a>
       <a class="sidebar-link" onclick="navigateTo('kelola-user')"><i class="fa-solid fa-users-cog"></i> Kelola User</a>
       <a class="sidebar-link" onclick="navigateTo('approve-pengajuan')"><i class="fa-solid fa-check-circle"></i> Approve Izin</a>
       ` : ""}
     </nav>
-    <button onclick="logout()" class="sidebar-logout"><i class="fa-solid fa-right-from-bracket"></i> Keluar</button>
+    <button onclick="logout()" class="sidebar-logout">
+      <i class="fa-solid fa-right-from-bracket"></i> Keluar
+    </button>
   `;
 }
 
-// =============================================
+// ============================================
 // BOTTOM NAV
-// =============================================
+// ============================================
 function renderBottomNav() {
   const isAdmin = currentUser.role === "Admin";
-  const nav = document.getElementById("bottomNav");
-  nav.innerHTML = `
-    <button onclick="navigateTo('absensi')" id="nav-absensi" class="nav-item">
-      <i class="fa-solid fa-fingerprint"></i><span>Absensi</span>
-    </button>
-    <button onclick="navigateTo('riwayat')" id="nav-riwayat" class="nav-item">
-      <i class="fa-solid fa-clock-rotate-left"></i><span>Riwayat</span>
-    </button>
-    <button onclick="navigateTo('pengajuan')" id="nav-pengajuan" class="nav-item">
-      <i class="fa-solid fa-file-alt"></i><span>Pengajuan</span>
-    </button>
-    ${isAdmin ? `<button onclick="navigateTo('monitoring')" id="nav-monitoring" class="nav-item">
-      <i class="fa-solid fa-chart-line"></i><span>Monitor</span>
-    </button>` : ""}
-    <button onclick="navigateTo('profil')" id="nav-profil" class="nav-item">
-      <i class="fa-solid fa-user-circle"></i><span>Profil</span>
-    </button>
+  document.getElementById("bottomNav").innerHTML = `
+    <button onclick="navigateTo('absensi')"   id="nav-absensi"   class="nav-item"><i class="fa-solid fa-fingerprint"></i><span>Absensi</span></button>
+    <button onclick="navigateTo('riwayat')"   id="nav-riwayat"   class="nav-item"><i class="fa-solid fa-clock-rotate-left"></i><span>Riwayat</span></button>
+    <button onclick="navigateTo('pengajuan')" id="nav-pengajuan" class="nav-item"><i class="fa-solid fa-file-alt"></i><span>Pengajuan</span></button>
+    ${isAdmin ? `<button onclick="navigateTo('monitoring')" id="nav-monitoring" class="nav-item"><i class="fa-solid fa-chart-line"></i><span>Monitor</span></button>` : ""}
+    <button onclick="navigateTo('profil')"    id="nav-profil"    class="nav-item"><i class="fa-solid fa-user-circle"></i><span>Profil</span></button>
   `;
 }
 
-// =============================================
+// ============================================
 // NAVIGATION
-// =============================================
+// ============================================
 function navigateTo(page) {
   currentPage = page;
   closeSidebar();
   stopCamera();
 
-  // Update active nav
   document.querySelectorAll(".nav-item").forEach(b => b.classList.remove("active"));
   const activeBtn = document.getElementById("nav-" + page);
   if (activeBtn) activeBtn.classList.add("active");
 
-  // Update active sidebar link
   document.querySelectorAll(".sidebar-link").forEach(l => l.classList.remove("active"));
 
-  const content = document.getElementById("content");
-  content.innerHTML = "";
+  document.getElementById("content").innerHTML = "";
 
   switch (page) {
-    case "absensi": renderAbsensi(); break;
-    case "riwayat": renderRiwayat(); break;
-    case "pengajuan": renderPengajuan(); break;
-    case "profil": renderProfil(); break;
-    case "monitoring": renderMonitoring(); break;
-    case "kelola-user": renderKelolaUser(); break;
-    case "approve-pengajuan": renderApprovePengajuan(); break;
-    default: content.innerHTML = `<div class="empty-state"><i class="fa-solid fa-circle-exclamation"></i><p>Halaman tidak ditemukan</p></div>`;
+    case "absensi":          renderAbsensi();          break;
+    case "riwayat":          renderRiwayat();          break;
+    case "pengajuan":        renderPengajuan();        break;
+    case "profil":           renderProfil();           break;
+    case "monitoring":       renderMonitoring();       break;
+    case "kelola-user":      renderKelolaUser();       break;
+    case "approve-pengajuan":renderApprovePengajuan(); break;
+    default:
+      document.getElementById("content").innerHTML =
+        `<div class="empty-state"><i class="fa-solid fa-circle-exclamation"></i><p>Halaman tidak ditemukan</p></div>`;
   }
 }
 
-// =============================================
+// ============================================
 // PAGE: ABSENSI
-// =============================================
+// ============================================
 function renderAbsensi() {
-  const content = document.getElementById("content");
-  content.innerHTML = `
+  document.getElementById("content").innerHTML = `
     <div class="page-header">
       <h2><i class="fa-solid fa-fingerprint"></i> Absensi</h2>
-      <p>Lakukan absensi dengan selfie + GPS</p>
+      <p>Selfie + GPS atau scan QR Code</p>
     </div>
 
     <div class="absensi-tabs">
-      <button class="tab-btn active" onclick="switchAbsensiTab('selfie', this)"><i class="fa-solid fa-camera"></i> Selfie + GPS</button>
-      <button class="tab-btn" onclick="switchAbsensiTab('qr', this)"><i class="fa-solid fa-qrcode"></i> QR Code</button>
+      <button class="tab-btn active" onclick="switchAbsensiTab('selfie', this)">
+        <i class="fa-solid fa-camera"></i> Selfie + GPS
+      </button>
+      <button class="tab-btn" onclick="switchAbsensiTab('qr', this)">
+        <i class="fa-solid fa-qrcode"></i> QR Code
+      </button>
     </div>
 
-    <div id="tab-selfie" class="tab-content">
-      <div class="camera-section">
+    <!-- TAB SELFIE -->
+    <div id="tab-selfie">
+      <div class="card">
         <div class="camera-wrap">
-          <video id="cameraVideo" autoplay playsinline></video>
-          <canvas id="cameraCanvas" style="display:none;"></canvas>
-          <div id="photoPreview" class="photo-preview" style="display:none;">
-            <img id="photoImg" src="" alt="Foto Selfie">
-          </div>
-          <div class="camera-overlay">
-            <div class="face-guide"></div>
+          <video id="cameraVideo" autoplay playsinline style="display:none;"></video>
+          <img id="photoImg" src="" alt="Foto" style="display:none;">
+          <div id="camera-placeholder" style="width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#334155;gap:8px;">
+            <i class="fa-solid fa-camera" style="font-size:36px;"></i>
+            <span style="font-size:12px;">Buka kamera</span>
           </div>
         </div>
         <div class="camera-controls">
-          <button id="btnCamera" onclick="startCamera()" class="btn-primary"><i class="fa-solid fa-camera"></i> Buka Kamera</button>
+          <button id="btnCamera"  onclick="startCamera()"  class="btn-primary"><i class="fa-solid fa-camera"></i> Buka Kamera</button>
           <button id="btnCapture" onclick="capturePhoto()" class="btn-success" style="display:none;"><i class="fa-solid fa-circle"></i> Ambil Foto</button>
-          <button id="btnRetake" onclick="retakePhoto()" class="btn-secondary" style="display:none;"><i class="fa-solid fa-redo"></i> Ulangi</button>
+          <button id="btnRetake"  onclick="retakePhoto()"  class="btn-secondary" style="display:none;"><i class="fa-solid fa-rotate-left"></i> Ulangi</button>
         </div>
       </div>
 
-      <div class="gps-section">
-        <div id="gpsStatus" class="gps-status idle">
-          <i class="fa-solid fa-location-dot"></i>
-          <span>GPS belum diambil</span>
+      <div class="card">
+        <div class="gps-section">
+          <div id="gpsStatus" class="gps-status idle">
+            <i class="fa-solid fa-location-dot"></i>
+            <span>GPS belum diambil</span>
+          </div>
+          <button onclick="getLocation()" class="btn-outline">
+            <i class="fa-solid fa-location-crosshairs"></i> Ambil Lokasi GPS
+          </button>
+          <input type="hidden" id="gpsLat">
+          <input type="hidden" id="gpsLng">
         </div>
-        <button onclick="getLocation()" class="btn-outline"><i class="fa-solid fa-location-crosshairs"></i> Ambil Lokasi GPS</button>
-        <input type="hidden" id="gpsLat">
-        <input type="hidden" id="gpsLng">
       </div>
 
       <button onclick="submitAbsensiSelfie()" class="btn-absensi">
@@ -230,15 +218,20 @@ function renderAbsensi() {
       </button>
     </div>
 
-    <div id="tab-qr" class="tab-content" style="display:none;">
-      <div class="qr-section">
-        <div class="qr-wrap">
-          <video id="qrVideo" autoplay playsinline></video>
-          <div class="qr-overlay"><div class="qr-scanner-line"></div></div>
+    <!-- TAB QR -->
+    <div id="tab-qr" style="display:none;">
+      <div class="card">
+        <div class="qr-section">
+          <div class="qr-wrap">
+            <video id="qrVideo" autoplay playsinline></video>
+            <div class="qr-overlay"><div class="qr-scanner-line"></div></div>
+          </div>
+          <p class="qr-hint">Arahkan kamera ke QR Code absensi</p>
+          <div style="display:flex;gap:10px;justify-content:center;">
+            <button onclick="startQRScanner()" class="btn-primary"><i class="fa-solid fa-qrcode"></i> Mulai Scan</button>
+            <button onclick="stopQRScanner()" class="btn-secondary" id="btnStopQR" style="display:none;"><i class="fa-solid fa-stop"></i> Stop</button>
+          </div>
         </div>
-        <p class="qr-hint">Arahkan kamera ke QR Code absensi</p>
-        <button onclick="startQRScanner()" class="btn-primary"><i class="fa-solid fa-qrcode"></i> Mulai Scan</button>
-        <button onclick="stopQRScanner()" class="btn-secondary" id="btnStopQR" style="display:none;"><i class="fa-solid fa-stop"></i> Stop Scan</button>
       </div>
     </div>
   `;
@@ -248,22 +241,24 @@ function switchAbsensiTab(tab, btn) {
   document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
   btn.classList.add("active");
   document.getElementById("tab-selfie").style.display = tab === "selfie" ? "block" : "none";
-  document.getElementById("tab-qr").style.display = tab === "qr" ? "block" : "none";
+  document.getElementById("tab-qr").style.display     = tab === "qr"     ? "block" : "none";
   stopCamera();
 }
 
-// =============================================
+// ============================================
 // CAMERA
-// =============================================
+// ============================================
 async function startCamera() {
   try {
     cameraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false });
     const video = document.getElementById("cameraVideo");
     video.srcObject = cameraStream;
-    document.getElementById("btnCamera").style.display = "none";
-    document.getElementById("btnCapture").style.display = "inline-flex";
-    document.getElementById("photoPreview").style.display = "none";
     video.style.display = "block";
+    document.getElementById("camera-placeholder").style.display = "none";
+    document.getElementById("photoImg").style.display = "none";
+    document.getElementById("btnCamera").style.display   = "none";
+    document.getElementById("btnCapture").style.display  = "inline-flex";
+    document.getElementById("btnRetake").style.display   = "none";
   } catch (err) {
     showToast("Gagal akses kamera: " + err.message, "error");
   }
@@ -271,29 +266,29 @@ async function startCamera() {
 
 function capturePhoto() {
   const video = document.getElementById("cameraVideo");
-  const canvas = document.getElementById("cameraCanvas");
-  canvas.width = video.videoWidth;
-  canvas.height = video.videoHeight;
+  const canvas = document.createElement("canvas");
+  canvas.width  = video.videoWidth  || 640;
+  canvas.height = video.videoHeight || 480;
   canvas.getContext("2d").drawImage(video, 0, 0);
-
-  capturedPhotoBase64 = canvas.toDataURL("image/jpeg", 0.7).split(",")[1];
+  capturedPhotoBase64 = canvas.toDataURL("image/jpeg", 0.75).split(",")[1];
 
   const img = document.getElementById("photoImg");
   img.src = "data:image/jpeg;base64," + capturedPhotoBase64;
-  document.getElementById("photoPreview").style.display = "block";
-  document.getElementById("cameraVideo").style.display = "none";
+  img.style.display = "block";
+  video.style.display = "none";
+  document.getElementById("camera-placeholder").style.display = "none";
   document.getElementById("btnCapture").style.display = "none";
-  document.getElementById("btnRetake").style.display = "inline-flex";
-
+  document.getElementById("btnRetake").style.display  = "inline-flex";
   stopCamera();
   showToast("Foto berhasil diambil!", "success");
 }
 
 function retakePhoto() {
   capturedPhotoBase64 = null;
-  document.getElementById("photoPreview").style.display = "none";
-  document.getElementById("btnRetake").style.display = "none";
-  document.getElementById("btnCamera").style.display = "inline-flex";
+  document.getElementById("photoImg").style.display = "none";
+  document.getElementById("camera-placeholder").style.display = "flex";
+  document.getElementById("btnRetake").style.display  = "none";
+  document.getElementById("btnCamera").style.display  = "inline-flex";
 }
 
 function stopCamera() {
@@ -303,17 +298,18 @@ function stopCamera() {
   }
 }
 
-// =============================================
+// ============================================
 // GPS
-// =============================================
+// ============================================
 function getLocation() {
   const status = document.getElementById("gpsStatus");
+  if (!status) return;
   status.className = "gps-status loading";
   status.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> <span>Mengambil lokasi...</span>`;
 
   if (!navigator.geolocation) {
     status.className = "gps-status error";
-    status.innerHTML = `<i class="fa-solid fa-xmark"></i> <span>GPS tidak didukung</span>`;
+    status.innerHTML = `<i class="fa-solid fa-xmark"></i> <span>GPS tidak didukung browser ini</span>`;
     return;
   }
 
@@ -328,15 +324,15 @@ function getLocation() {
     (err) => {
       status.className = "gps-status error";
       status.innerHTML = `<i class="fa-solid fa-xmark"></i> <span>Gagal: ${err.message}</span>`;
-      showToast("Gagal ambil GPS: " + err.message, "error");
+      showToast("Gagal ambil GPS", "error");
     },
     { enableHighAccuracy: true, timeout: 10000 }
   );
 }
 
-// =============================================
+// ============================================
 // SUBMIT ABSENSI SELFIE
-// =============================================
+// ============================================
 async function submitAbsensiSelfie() {
   if (!capturedPhotoBase64) return showToast("Ambil foto selfie terlebih dahulu", "error");
   const lat = document.getElementById("gpsLat").value;
@@ -345,25 +341,23 @@ async function submitAbsensiSelfie() {
 
   showLoading(true);
   try {
-    // Upload foto dulu
     const uploadRes = await fetchAPI({ action: "uploadFoto", foto: capturedPhotoBase64, nama: currentUser.nama });
     if (!uploadRes.success) throw new Error(uploadRes.message);
 
-    // Kirim absensi
     const absenRes = await fetchAPI({
-      action: "absensi",
-      nama: currentUser.nama,
-      latitude: lat,
-      longitude: lng,
-      linkFoto: uploadRes.linkFoto
+      action: "absensi", nama: currentUser.nama,
+      latitude: lat, longitude: lng, linkFoto: uploadRes.linkFoto
     });
 
     if (absenRes.success) {
-      showToast("✅ Absensi berhasil! Waktu: " + absenRes.waktu, "success");
+      showToast("✅ Absensi berhasil! " + absenRes.waktu, "success");
       capturedPhotoBase64 = null;
       retakePhoto();
-      document.getElementById("gpsStatus").className = "gps-status idle";
-      document.getElementById("gpsStatus").innerHTML = `<i class="fa-solid fa-location-dot"></i> <span>GPS belum diambil</span>`;
+      const gpsStatus = document.getElementById("gpsStatus");
+      if (gpsStatus) {
+        gpsStatus.className = "gps-status idle";
+        gpsStatus.innerHTML = `<i class="fa-solid fa-location-dot"></i> <span>GPS belum diambil</span>`;
+      }
       document.getElementById("gpsLat").value = "";
       document.getElementById("gpsLng").value = "";
     } else {
@@ -376,9 +370,9 @@ async function submitAbsensiSelfie() {
   }
 }
 
-// =============================================
-// QR SCANNER (menggunakan jsQR)
-// =============================================
+// ============================================
+// QR SCANNER
+// ============================================
 async function startQRScanner() {
   try {
     cameraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false });
@@ -395,24 +389,14 @@ function scanQRFrame(video) {
   if (!cameraStream) return;
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d");
-
   const tick = () => {
-    if (!cameraStream || video.readyState !== video.HAVE_ENOUGH_DATA) {
-      requestAnimationFrame(tick);
-      return;
-    }
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
+    if (!cameraStream || video.readyState !== video.HAVE_ENOUGH_DATA) { requestAnimationFrame(tick); return; }
+    canvas.width = video.videoWidth; canvas.height = video.videoHeight;
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-
     if (typeof jsQR !== "undefined") {
       const code = jsQR(imageData.data, imageData.width, imageData.height);
-      if (code) {
-        stopQRScanner();
-        handleQRResult(code.data);
-        return;
-      }
+      if (code) { stopQRScanner(); handleQRResult(code.data); return; }
     }
     requestAnimationFrame(tick);
   };
@@ -421,33 +405,20 @@ function scanQRFrame(video) {
 
 function stopQRScanner() {
   stopCamera();
-  document.getElementById("btnStopQR").style.display = "none";
+  const btn = document.getElementById("btnStopQR");
+  if (btn) btn.style.display = "none";
 }
 
 async function handleQRResult(data) {
-  // QR harus berisi token valid, misal: "ABSENSI-LIVINGPLAZA-{tanggal}"
   const today = new Date().toISOString().slice(0, 10);
   const validToken = "ABSENSI-LIVINGPLAZA-" + today;
-
-  if (data !== validToken) {
-    showToast("QR Code tidak valid atau sudah kadaluarsa", "error");
-    return;
-  }
+  if (data !== validToken) return showToast("QR Code tidak valid atau sudah kadaluarsa", "error");
 
   showLoading(true);
   try {
-    const res = await fetchAPI({
-      action: "absensi",
-      nama: currentUser.nama,
-      latitude: "-",
-      longitude: "-",
-      linkFoto: "-"
-    });
-    if (res.success) {
-      showToast("✅ Absensi QR berhasil! " + res.waktu, "success");
-    } else {
-      showToast(res.message, "error");
-    }
+    const res = await fetchAPI({ action: "absensi", nama: currentUser.nama, latitude: "-", longitude: "-", linkFoto: "-" });
+    if (res.success) showToast("✅ Absensi QR berhasil! " + res.waktu, "success");
+    else showToast(res.message, "error");
   } catch (err) {
     showToast("Error: " + err.message, "error");
   } finally {
@@ -455,12 +426,11 @@ async function handleQRResult(data) {
   }
 }
 
-// =============================================
-// PAGE: RIWAYAT ABSENSI
-// =============================================
+// ============================================
+// PAGE: RIWAYAT
+// ============================================
 async function renderRiwayat() {
-  const content = document.getElementById("content");
-  content.innerHTML = `
+  document.getElementById("content").innerHTML = `
     <div class="page-header">
       <h2><i class="fa-solid fa-clock-rotate-left"></i> Riwayat Absensi</h2>
     </div>
@@ -468,24 +438,25 @@ async function renderRiwayat() {
       <div class="loading-state"><i class="fa-solid fa-spinner fa-spin"></i> Memuat data...</div>
     </div>
   `;
-
   try {
     const res = await fetchAPI({ action: "getAbsensi", nama: currentUser.nama });
     const list = document.getElementById("riwayat-list");
-    if (!res.success || res.data.length === 0) {
+    if (!res.success || !res.data || res.data.length === 0) {
       list.innerHTML = `<div class="empty-state"><i class="fa-solid fa-inbox"></i><p>Belum ada riwayat absensi</p></div>`;
       return;
     }
     list.innerHTML = res.data.map(item => `
       <div class="absensi-card">
         <div class="absensi-card-left">
-          ${item.foto && item.foto !== "-" ? `<img src="${item.foto}" class="absensi-foto" alt="selfie">` : `<div class="absensi-foto-placeholder"><i class="fa-solid fa-user"></i></div>`}
+          ${item.foto && item.foto !== "-"
+            ? `<img src="${item.foto}" class="absensi-foto" alt="selfie">`
+            : `<div class="absensi-foto-placeholder"><i class="fa-solid fa-user"></i></div>`}
         </div>
         <div class="absensi-card-body">
           <div class="absensi-waktu">${formatDateTime(item.waktu)}</div>
           <div class="absensi-info">
             <i class="fa-solid fa-location-dot"></i>
-            ${item.latitude && item.latitude !== "-" 
+            ${item.latitude && item.latitude !== "-"
               ? `<a href="https://maps.google.com?q=${item.latitude},${item.longitude}" target="_blank">${parseFloat(item.latitude).toFixed(4)}, ${parseFloat(item.longitude).toFixed(4)}</a>`
               : "Lokasi tidak tersedia"}
           </div>
@@ -494,22 +465,21 @@ async function renderRiwayat() {
       </div>
     `).join("");
   } catch (err) {
-    document.getElementById("riwayat-list").innerHTML = `<div class="empty-state error"><i class="fa-solid fa-triangle-exclamation"></i><p>Gagal memuat data</p></div>`;
+    document.getElementById("riwayat-list").innerHTML =
+      `<div class="empty-state error"><i class="fa-solid fa-triangle-exclamation"></i><p>Gagal memuat data</p></div>`;
   }
 }
 
-// =============================================
-// PAGE: PENGAJUAN IZIN
-// =============================================
+// ============================================
+// PAGE: PENGAJUAN
+// ============================================
 async function renderPengajuan() {
-  const content = document.getElementById("content");
-  content.innerHTML = `
+  document.getElementById("content").innerHTML = `
     <div class="page-header">
       <h2><i class="fa-solid fa-file-alt"></i> Pengajuan Izin</h2>
     </div>
-
-    <div class="card form-card">
-      <h3>Buat Pengajuan</h3>
+    <div class="card">
+      <h3>Buat Pengajuan Baru</h3>
       <div class="field">
         <label>Tipe Izin</label>
         <select id="tipeIzin">
@@ -525,20 +495,21 @@ async function renderPengajuan() {
         <textarea id="keteranganIzin" placeholder="Jelaskan alasan pengajuan izin..." rows="3"></textarea>
       </div>
       <div class="field">
-        <label>Link Surat Sakit (Opsional)</label>
+        <label>Link Surat Pendukung <span style="color:#64748b;font-weight:400;">(opsional)</span></label>
         <input type="url" id="linkSurat" placeholder="https://drive.google.com/...">
       </div>
-      <button onclick="submitPengajuan()" class="btn-primary"><i class="fa-solid fa-paper-plane"></i> Kirim Pengajuan</button>
+      <button onclick="submitPengajuan()" class="btn-primary full">
+        <i class="fa-solid fa-paper-plane"></i> Kirim Pengajuan
+      </button>
     </div>
 
-    <div class="page-header" style="margin-top:24px;">
-      <h3>Riwayat Pengajuan</h3>
+    <div class="page-header" style="margin-top:8px;">
+      <h2 style="font-size:16px;"><i class="fa-solid fa-list"></i> Riwayat Pengajuan</h2>
     </div>
     <div id="pengajuan-list" class="card-list">
-      <div class="loading-state"><i class="fa-solid fa-spinner fa-spin"></i> Memuat data...</div>
+      <div class="loading-state"><i class="fa-solid fa-spinner fa-spin"></i> Memuat...</div>
     </div>
   `;
-
   loadPengajuanList();
 }
 
@@ -546,7 +517,7 @@ async function loadPengajuanList() {
   try {
     const res = await fetchAPI({ action: "getPengajuan", nama: currentUser.nama, role: currentUser.role });
     const list = document.getElementById("pengajuan-list");
-    if (!res.success || res.data.length === 0) {
+    if (!res.success || !res.data || res.data.length === 0) {
       list.innerHTML = `<div class="empty-state"><i class="fa-solid fa-inbox"></i><p>Belum ada pengajuan</p></div>`;
       return;
     }
@@ -558,34 +529,31 @@ async function loadPengajuanList() {
         </div>
         <div class="pengajuan-ket">${item.keterangan || "-"}</div>
         <div class="pengajuan-footer">
-          <small><i class="fa-solid fa-calendar"></i> ${formatDateTime(item.tglSubmit)}</small>
+          <small style="color:#64748b;"><i class="fa-solid fa-calendar"></i> ${formatDateTime(item.tglSubmit)}</small>
           ${item.linkSurat ? `<a href="${item.linkSurat}" target="_blank" class="btn-link"><i class="fa-solid fa-file-medical"></i> Lihat Surat</a>` : ""}
         </div>
       </div>
     `).join("");
   } catch (err) {
-    document.getElementById("pengajuan-list").innerHTML = `<div class="empty-state error"><p>Gagal memuat data</p></div>`;
+    document.getElementById("pengajuan-list").innerHTML =
+      `<div class="empty-state error"><p>Gagal memuat data</p></div>`;
   }
 }
 
 async function submitPengajuan() {
-  const tipe = document.getElementById("tipeIzin").value;
-  const keterangan = document.getElementById("keteranganIzin").value.trim();
-  const linkSurat = document.getElementById("linkSurat").value.trim();
+  const tipe        = document.getElementById("tipeIzin").value;
+  const keterangan  = document.getElementById("keteranganIzin").value.trim();
+  const linkSurat   = document.getElementById("linkSurat").value.trim();
 
   if (!keterangan) return showToast("Keterangan wajib diisi", "error");
 
   showLoading(true);
   try {
-    const res = await fetchAPI({
-      action: "pengajuan",
-      nama: currentUser.nama,
-      tipe, keterangan, linkSurat
-    });
+    const res = await fetchAPI({ action: "pengajuan", nama: currentUser.nama, tipe, keterangan, linkSurat });
     if (res.success) {
       showToast("Pengajuan berhasil dikirim!", "success");
       document.getElementById("keteranganIzin").value = "";
-      document.getElementById("linkSurat").value = "";
+      document.getElementById("linkSurat").value      = "";
       loadPengajuanList();
     } else {
       showToast(res.message, "error");
@@ -597,14 +565,13 @@ async function submitPengajuan() {
   }
 }
 
-// =============================================
+// ============================================
 // PAGE: PROFIL
-// =============================================
+// ============================================
 function renderProfil() {
-  const content = document.getElementById("content");
-  content.innerHTML = `
+  document.getElementById("content").innerHTML = `
     <div class="page-header">
-      <h2><i class="fa-solid fa-user-circle"></i> Profil</h2>
+      <h2><i class="fa-solid fa-user-circle"></i> Profil Saya</h2>
     </div>
     <div class="card profil-card">
       <div class="profil-avatar"><i class="fa-solid fa-user"></i></div>
@@ -615,7 +582,7 @@ function renderProfil() {
       </div>
     </div>
 
-    <div class="card form-card" style="margin-top:16px;">
+    <div class="card" style="margin-top:4px;">
       <h3><i class="fa-solid fa-lock"></i> Ganti Password</h3>
       <div class="field">
         <label>Password Lama</label>
@@ -623,20 +590,22 @@ function renderProfil() {
       </div>
       <div class="field">
         <label>Password Baru</label>
-        <input type="password" id="newPassword" placeholder="Password baru">
+        <input type="password" id="newPassword" placeholder="Minimal 6 karakter">
       </div>
       <div class="field">
-        <label>Konfirmasi Password</label>
+        <label>Konfirmasi Password Baru</label>
         <input type="password" id="confirmPassword" placeholder="Ulangi password baru">
       </div>
-      <button onclick="changePassword()" class="btn-primary"><i class="fa-solid fa-save"></i> Simpan</button>
+      <button onclick="changePassword()" class="btn-primary full">
+        <i class="fa-solid fa-save"></i> Simpan Password
+      </button>
     </div>
   `;
 }
 
 async function changePassword() {
-  const oldPassword = document.getElementById("oldPassword").value.trim();
-  const newPassword = document.getElementById("newPassword").value.trim();
+  const oldPassword     = document.getElementById("oldPassword").value.trim();
+  const newPassword     = document.getElementById("newPassword").value.trim();
   const confirmPassword = document.getElementById("confirmPassword").value.trim();
 
   if (!oldPassword || !newPassword || !confirmPassword) return showToast("Semua field wajib diisi", "error");
@@ -645,15 +614,11 @@ async function changePassword() {
 
   showLoading(true);
   try {
-    const res = await fetchAPI({
-      action: "changePassword",
-      email: currentUser.email,
-      oldPassword, newPassword
-    });
+    const res = await fetchAPI({ action: "changePassword", email: currentUser.email, oldPassword, newPassword });
     if (res.success) {
       showToast("Password berhasil diubah!", "success");
-      document.getElementById("oldPassword").value = "";
-      document.getElementById("newPassword").value = "";
+      document.getElementById("oldPassword").value     = "";
+      document.getElementById("newPassword").value     = "";
       document.getElementById("confirmPassword").value = "";
     } else {
       showToast(res.message, "error");
@@ -665,37 +630,32 @@ async function changePassword() {
   }
 }
 
-// =============================================
+// ============================================
 // PAGE: MONITORING (Admin)
-// =============================================
+// ============================================
 async function renderMonitoring() {
   if (currentUser.role !== "Admin") return navigateTo("absensi");
-  const content = document.getElementById("content");
-  content.innerHTML = `
+  document.getElementById("content").innerHTML = `
     <div class="page-header">
       <h2><i class="fa-solid fa-chart-line"></i> Monitoring Absensi</h2>
-      <p>Data absensi hari ini</p>
+      <p>Data kehadiran hari ini</p>
     </div>
     <div id="monitor-stats" class="stats-grid">
-      <div class="loading-state"><i class="fa-solid fa-spinner fa-spin"></i> Memuat...</div>
+      <div class="loading-state" style="grid-column:1/-1;"><i class="fa-solid fa-spinner fa-spin"></i> Memuat...</div>
     </div>
     <div id="monitor-list" class="card-list"></div>
   `;
-
   try {
     const res = await fetchAPI({ action: "getAbsensiHarian", role: currentUser.role });
-    const stats = document.getElementById("monitor-stats");
-    const list = document.getElementById("monitor-list");
-
-    stats.innerHTML = `
+    document.getElementById("monitor-stats").innerHTML = `
       <div class="stat-card green">
         <div class="stat-icon"><i class="fa-solid fa-user-check"></i></div>
-        <div class="stat-val">${res.data.length}</div>
+        <div class="stat-val">${res.data ? res.data.length : 0}</div>
         <div class="stat-label">Hadir</div>
       </div>
       <div class="stat-card red">
         <div class="stat-icon"><i class="fa-solid fa-user-xmark"></i></div>
-        <div class="stat-val">${Math.max(0, (res.totalStaff || 0) - res.data.length)}</div>
+        <div class="stat-val">${Math.max(0, (res.totalStaff || 0) - (res.data ? res.data.length : 0))}</div>
         <div class="stat-label">Tidak Hadir</div>
       </div>
       <div class="stat-card blue">
@@ -704,48 +664,52 @@ async function renderMonitoring() {
         <div class="stat-label">Total Staff</div>
       </div>
     `;
-
-    if (res.data.length === 0) {
+    const list = document.getElementById("monitor-list");
+    if (!res.data || res.data.length === 0) {
       list.innerHTML = `<div class="empty-state"><i class="fa-solid fa-inbox"></i><p>Belum ada absensi hari ini</p></div>`;
       return;
     }
-
-    list.innerHTML = `<h3 style="padding:0 4px;margin-bottom:8px;">Daftar Hadir Hari Ini</h3>` + res.data.map((item, i) => `
-      <div class="absensi-card">
-        <div class="absensi-card-left">
-          <span class="absensi-num">${i + 1}</span>
-          ${item.foto && item.foto !== "-" ? `<img src="${item.foto}" class="absensi-foto" alt="selfie">` : `<div class="absensi-foto-placeholder"><i class="fa-solid fa-user"></i></div>`}
-        </div>
-        <div class="absensi-card-body">
-          <div class="absensi-nama">${item.nama}</div>
-          <div class="absensi-waktu">${formatDateTime(item.waktu)}</div>
-          <div class="absensi-info">
-            <i class="fa-solid fa-location-dot"></i>
-            ${item.latitude && item.latitude !== "-" 
-              ? `<a href="https://maps.google.com?q=${item.latitude},${item.longitude}" target="_blank">${parseFloat(item.latitude).toFixed(4)}, ${parseFloat(item.longitude).toFixed(4)}</a>`
-              : "QR / Tanpa GPS"}
+    list.innerHTML = `<p style="font-size:14px;font-weight:600;margin-bottom:10px;">Daftar Hadir</p>` +
+      res.data.map((item, i) => `
+        <div class="absensi-card">
+          <div class="absensi-card-left">
+            <span class="absensi-num">${i + 1}</span>
+            ${item.foto && item.foto !== "-"
+              ? `<img src="${item.foto}" class="absensi-foto" alt="selfie">`
+              : `<div class="absensi-foto-placeholder"><i class="fa-solid fa-user"></i></div>`}
           </div>
+          <div class="absensi-card-body">
+            <div class="absensi-nama">${item.nama}</div>
+            <div class="absensi-waktu">${formatDateTime(item.waktu)}</div>
+            <div class="absensi-info">
+              <i class="fa-solid fa-location-dot"></i>
+              ${item.latitude && item.latitude !== "-"
+                ? `<a href="https://maps.google.com?q=${item.latitude},${item.longitude}" target="_blank">${parseFloat(item.latitude).toFixed(4)}, ${parseFloat(item.longitude).toFixed(4)}</a>`
+                : "QR / Tanpa GPS"}
+            </div>
+          </div>
+          <div class="absensi-badge success">Hadir</div>
         </div>
-        <div class="absensi-badge success">Hadir</div>
-      </div>
-    `).join("");
+      `).join("");
   } catch (err) {
-    document.getElementById("monitor-stats").innerHTML = `<div class="empty-state error"><p>Gagal memuat data</p></div>`;
+    document.getElementById("monitor-stats").innerHTML =
+      `<div class="empty-state error" style="grid-column:1/-1;"><p>Gagal memuat data</p></div>`;
   }
 }
 
-// =============================================
+// ============================================
 // PAGE: KELOLA USER (Admin)
-// =============================================
+// ============================================
 async function renderKelolaUser() {
   if (currentUser.role !== "Admin") return navigateTo("absensi");
-  const content = document.getElementById("content");
-  content.innerHTML = `
-    <div class="page-header">
+  document.getElementById("content").innerHTML = `
+    <div class="page-header-row">
       <h2><i class="fa-solid fa-users-cog"></i> Kelola User</h2>
-      <button onclick="showAddUserForm()" class="btn-primary btn-sm"><i class="fa-solid fa-plus"></i> Tambah User</button>
+      <button onclick="showAddUserForm()" class="btn-primary btn-sm">
+        <i class="fa-solid fa-plus"></i> Tambah
+      </button>
     </div>
-    <div id="user-list" class="card-list">
+    <div id="user-list">
       <div class="loading-state"><i class="fa-solid fa-spinner fa-spin"></i> Memuat...</div>
     </div>
   `;
@@ -756,7 +720,7 @@ async function loadUserList() {
   try {
     const res = await fetchAPI({ action: "getUsers", role: currentUser.role });
     const list = document.getElementById("user-list");
-    if (!res.success || res.data.length === 0) {
+    if (!res.success || !res.data || res.data.length === 0) {
       list.innerHTML = `<div class="empty-state"><i class="fa-solid fa-inbox"></i><p>Belum ada user</p></div>`;
       return;
     }
@@ -772,45 +736,52 @@ async function loadUserList() {
           </div>
         </div>
         <div class="user-actions">
-          <button onclick="openEditUser('${user.id}','${user.nama}','${user.email}','${user.role}','${user.status}')" class="btn-icon edit"><i class="fa-solid fa-pen"></i></button>
-          <button onclick="deleteUser('${user.id}','${user.nama}')" class="btn-icon delete"><i class="fa-solid fa-trash"></i></button>
+          <button onclick="openEditUser('${user.id}','${user.nama}','${user.email}','${user.role}','${user.status}')" class="btn-icon edit">
+            <i class="fa-solid fa-pen"></i>
+          </button>
+          <button onclick="deleteUser('${user.id}','${user.nama}')" class="btn-icon delete">
+            <i class="fa-solid fa-trash"></i>
+          </button>
         </div>
       </div>
     `).join("");
   } catch (err) {
-    document.getElementById("user-list").innerHTML = `<div class="empty-state error"><p>Gagal memuat data</p></div>`;
+    document.getElementById("user-list").innerHTML =
+      `<div class="empty-state error"><p>Gagal memuat data</p></div>`;
   }
 }
 
 function showAddUserForm() {
-  const content = document.getElementById("content");
-  content.innerHTML = `
-    <div class="page-header">
-      <button onclick="renderKelolaUser()" class="btn-back"><i class="fa-solid fa-arrow-left"></i></button>
-      <h2>Tambah User Baru</h2>
+  document.getElementById("content").innerHTML = `
+    <div class="page-header-row">
+      <h2><button onclick="renderKelolaUser()" class="btn-back"><i class="fa-solid fa-arrow-left"></i></button> Tambah User</h2>
     </div>
-    <div class="card form-card">
+    <div class="card">
       <div class="field"><label>Nama Lengkap</label><input type="text" id="add-nama" placeholder="Nama lengkap"></div>
-      <div class="field"><label>Email</label><input type="email" id="add-email" placeholder="email@hotel.com"></div>
-      <div class="field"><label>Password</label><input type="password" id="add-password" placeholder="Password"></div>
-      <div class="field"><label>Role</label>
+      <div class="field"><label>Email</label><input type="email" id="add-email" placeholder="email@perusahaan.com"></div>
+      <div class="field"><label>Password</label><input type="password" id="add-password" placeholder="Minimal 6 karakter"></div>
+      <div class="field">
+        <label>Role</label>
         <select id="add-role">
           <option value="Staff">Staff</option>
           <option value="Admin">Admin</option>
         </select>
       </div>
-      <button onclick="addUser()" class="btn-primary"><i class="fa-solid fa-plus"></i> Tambah User</button>
+      <button onclick="addUser()" class="btn-primary full">
+        <i class="fa-solid fa-plus"></i> Tambah User
+      </button>
     </div>
   `;
 }
 
 async function addUser() {
-  const nama = document.getElementById("add-nama").value.trim();
-  const email = document.getElementById("add-email").value.trim();
+  const nama     = document.getElementById("add-nama").value.trim();
+  const email    = document.getElementById("add-email").value.trim();
   const password = document.getElementById("add-password").value.trim();
-  const jabatan = document.getElementById("add-role").value;
+  const jabatan  = document.getElementById("add-role").value;
 
   if (!nama || !email || !password) return showToast("Semua field wajib diisi", "error");
+  if (password.length < 6) return showToast("Password minimal 6 karakter", "error");
 
   showLoading(true);
   try {
@@ -829,27 +800,29 @@ async function addUser() {
 }
 
 function openEditUser(id, nama, email, jabatan, status) {
-  document.getElementById("edit-user-id").value = id;
-  document.getElementById("edit-nama").value = nama;
-  document.getElementById("edit-nip").value = email;
-  document.getElementById("edit-jabatan").value = jabatan;
-  document.getElementById("edit-password").value = "";
-  document.getElementById("modal-edit-user").style.display = "flex";
+  document.getElementById("edit-user-id").value    = id;
+  document.getElementById("edit-nama").value       = nama;
+  document.getElementById("edit-nip").value        = email;
+  document.getElementById("edit-jabatan").value    = jabatan;
+  document.getElementById("edit-status-user").value = status;
+  document.getElementById("edit-password").value   = "";
+  document.getElementById("modal-edit-user").classList.add("show");
 }
 
 function closeModalEdit() {
-  document.getElementById("modal-edit-user").style.display = "none";
+  document.getElementById("modal-edit-user").classList.remove("show");
 }
 
 async function saveEditUser() {
-  const id = document.getElementById("edit-user-id").value;
-  const nama = document.getElementById("edit-nama").value.trim();
-  const jabatan = document.getElementById("edit-jabatan").value;
+  const id       = document.getElementById("edit-user-id").value;
+  const nama     = document.getElementById("edit-nama").value.trim();
+  const jabatan  = document.getElementById("edit-jabatan").value;
+  const status   = document.getElementById("edit-status-user").value;  // ← fix
   const password = document.getElementById("edit-password").value.trim();
 
   showLoading(true);
   try {
-    const res = await fetchAPI({ action: "editUser", role: currentUser.role, id, nama, jabatan, password });
+    const res = await fetchAPI({ action: "editUser", role: currentUser.role, id, nama, jabatan, status, password });
     if (res.success) {
       showToast("User berhasil diperbarui!", "success");
       closeModalEdit();
@@ -882,25 +855,23 @@ async function deleteUser(id, nama) {
   }
 }
 
-// =============================================
+// ============================================
 // PAGE: APPROVE PENGAJUAN (Admin)
-// =============================================
+// ============================================
 async function renderApprovePengajuan() {
   if (currentUser.role !== "Admin") return navigateTo("absensi");
-  const content = document.getElementById("content");
-  content.innerHTML = `
+  document.getElementById("content").innerHTML = `
     <div class="page-header">
-      <h2><i class="fa-solid fa-check-circle"></i> Approve Pengajuan Izin</h2>
+      <h2><i class="fa-solid fa-check-circle"></i> Approve Pengajuan</h2>
     </div>
     <div id="approve-list" class="card-list">
       <div class="loading-state"><i class="fa-solid fa-spinner fa-spin"></i> Memuat...</div>
     </div>
   `;
-
   try {
     const res = await fetchAPI({ action: "getPengajuan", role: currentUser.role, nama: "" });
     const list = document.getElementById("approve-list");
-    if (!res.success || res.data.length === 0) {
+    if (!res.success || !res.data || res.data.length === 0) {
       list.innerHTML = `<div class="empty-state"><i class="fa-solid fa-inbox"></i><p>Tidak ada pengajuan</p></div>`;
       return;
     }
@@ -908,25 +879,30 @@ async function renderApprovePengajuan() {
       <div class="pengajuan-card">
         <div class="pengajuan-header">
           <div>
-            <div class="user-nama">${item.nama}</div>
+            <div style="font-size:13px;color:#64748b;margin-bottom:2px;">${item.nama}</div>
             <span class="pengajuan-tipe">${item.tipe}</span>
           </div>
           <span class="status-badge ${getStatusClass(item.status)}">${item.status}</span>
         </div>
         <div class="pengajuan-ket">${item.keterangan || "-"}</div>
         <div class="pengajuan-footer">
-          <small><i class="fa-solid fa-calendar"></i> ${formatDateTime(item.tglSubmit)}</small>
+          <small style="color:#64748b;"><i class="fa-solid fa-calendar"></i> ${formatDateTime(item.tglSubmit)}</small>
           ${item.linkSurat ? `<a href="${item.linkSurat}" target="_blank" class="btn-link"><i class="fa-solid fa-file-medical"></i> Lihat Surat</a>` : ""}
         </div>
         ${item.status === "Menunggu" ? `
         <div class="approve-actions">
-          <button onclick="approvePengajuan('${item.id}','Disetujui')" class="btn-approve"><i class="fa-solid fa-check"></i> Setujui</button>
-          <button onclick="approvePengajuan('${item.id}','Ditolak')" class="btn-reject"><i class="fa-solid fa-xmark"></i> Tolak</button>
+          <button onclick="approvePengajuan('${item.id}','Disetujui')" class="btn-approve">
+            <i class="fa-solid fa-check"></i> Setujui
+          </button>
+          <button onclick="approvePengajuan('${item.id}','Ditolak')" class="btn-reject">
+            <i class="fa-solid fa-xmark"></i> Tolak
+          </button>
         </div>` : ""}
       </div>
     `).join("");
   } catch (err) {
-    document.getElementById("approve-list").innerHTML = `<div class="empty-state error"><p>Gagal memuat data</p></div>`;
+    document.getElementById("approve-list").innerHTML =
+      `<div class="empty-state error"><p>Gagal memuat data</p></div>`;
   }
 }
 
@@ -949,26 +925,26 @@ async function approvePengajuan(id, status) {
   }
 }
 
-// =============================================
+// ============================================
 // SIDEBAR TOGGLE
-// =============================================
+// ============================================
 function toggleSidebar() {
   document.getElementById("sidebar").classList.toggle("open");
   document.getElementById("overlay").classList.toggle("show");
 }
-
 function closeSidebar() {
   document.getElementById("sidebar").classList.remove("open");
   document.getElementById("overlay").classList.remove("show");
 }
 
-// =============================================
+// ============================================
 // HELPERS
-// =============================================
+// ============================================
 async function fetchAPI(params) {
   const url = new URL(API_URL);
   Object.entries(params).forEach(([k, v]) => url.searchParams.append(k, v));
   const res = await fetch(url.toString());
+  if (!res.ok) throw new Error("HTTP " + res.status);
   return res.json();
 }
 
@@ -994,14 +970,14 @@ function formatDateTime(dt) {
   if (!dt) return "-";
   const d = new Date(dt);
   if (isNaN(d)) return dt;
-  return d.toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" })
-    + " " + d.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" });
+  return d.toLocaleDateString("id-ID", { day:"2-digit", month:"long", year:"numeric" })
+    + " " + d.toLocaleTimeString("id-ID", { hour:"2-digit", minute:"2-digit" });
 }
 
 function getStatusClass(status) {
-  if (!status) return "";
+  if (!status) return "warning";
   const s = status.toLowerCase();
   if (s === "disetujui") return "success";
-  if (s === "ditolak") return "danger";
+  if (s === "ditolak")   return "danger";
   return "warning";
 }
