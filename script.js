@@ -166,77 +166,47 @@ function navigateTo(page) {
 // PAGE: ABSENSI
 // ============================================
 function renderAbsensi() {
-  document.getElementById("content").innerHTML = `
+  const content = document.getElementById("content");
+  content.innerHTML = `
     <div class="page-header">
       <h2><i class="fa-solid fa-fingerprint"></i> Absensi</h2>
-      <p>Selfie + GPS atau scan QR Code</p>
+      <p>Lakukan absensi dengan selfie + GPS</p>
     </div>
 
-    <div class="absensi-tabs">
-      <button class="tab-btn active" onclick="switchAbsensiTab('selfie', this)">
-        <i class="fa-solid fa-camera"></i> Selfie + GPS
-      </button>
-      <button class="tab-btn" onclick="switchAbsensiTab('qr', this)">
-        <i class="fa-solid fa-qrcode"></i> QR Code
-      </button>
-    </div>
-
-    <!-- TAB SELFIE -->
-    <div id="tab-selfie">
-      <div class="card">
+    <div class="tab-content">
+      <div class="camera-section">
         <div class="camera-wrap">
-          <video id="cameraVideo" autoplay playsinline style="display:none;"></video>
-          <img id="photoImg" src="" alt="Foto" style="display:none;">
-          <div id="camera-placeholder" style="width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#334155;gap:8px;">
-            <i class="fa-solid fa-camera" style="font-size:36px;"></i>
-            <span style="font-size:12px;">Buka kamera</span>
+          <video id="cameraVideo" autoplay playsinline class="flip-horizontal"></video>
+          <canvas id="cameraCanvas" style="display:none;"></canvas>
+          <!-- Frame panduan wajah agar lebih estetik -->
+          <div class="camera-overlay">
+            <div class="face-guide"></div>
           </div>
-        </div>
-        <div class="camera-controls">
-          <button id="btnCamera"  onclick="startCamera()"  class="btn-primary"><i class="fa-solid fa-camera"></i> Buka Kamera</button>
-          <button id="btnCapture" onclick="capturePhoto()" class="btn-success" style="display:none;"><i class="fa-solid fa-circle"></i> Ambil Foto</button>
-          <button id="btnRetake"  onclick="retakePhoto()"  class="btn-secondary" style="display:none;"><i class="fa-solid fa-rotate-left"></i> Ulangi</button>
         </div>
       </div>
 
-      <div class="card">
-        <div class="gps-section">
-          <div id="gpsStatus" class="gps-status idle">
-            <i class="fa-solid fa-location-dot"></i>
-            <span>GPS belum diambil</span>
-          </div>
-          <button onclick="getLocation()" class="btn-outline">
-            <i class="fa-solid fa-location-crosshairs"></i> Ambil Lokasi GPS
-          </button>
-          <input type="hidden" id="gpsLat">
-          <input type="hidden" id="gpsLng">
+      <div class="gps-section">
+        <div id="gpsStatus" class="gps-status idle">
+          <i class="fa-solid fa-location-dot"></i>
+          <span>Status GPS: Standby</span>
         </div>
       </div>
 
-      <button onclick="submitAbsensiSelfie()" class="btn-absensi">
-        <i class="fa-solid fa-check-circle"></i> Kirim Absensi
-      </button>
-    </div>
-
-    <!-- TAB QR -->
-    <div id="tab-qr" style="display:none;">
-      <div class="card">
-        <div class="qr-section">
-          <div class="qr-wrap">
-            <video id="qrVideo" autoplay playsinline></video>
-            <div class="qr-overlay"><div class="qr-scanner-line"></div></div>
-          </div>
-          <p class="qr-hint">Arahkan kamera ke QR Code absensi</p>
-          <div style="display:flex;gap:10px;justify-content:center;">
-            <button onclick="startQRScanner()" class="btn-primary"><i class="fa-solid fa-qrcode"></i> Mulai Scan</button>
-            <button onclick="stopQRScanner()" class="btn-secondary" id="btnStopQR" style="display:none;"><i class="fa-solid fa-stop"></i> Stop</button>
-          </div>
-        </div>
+      <!-- TOMBOL BARU: 1x KLIK LANGSUNG PROSES -->
+      <div class="flex-row gap-4" style="display:flex; gap:15px; margin-top:20px;">
+        <button onclick="autoAbsen('Datang')" id="btn-datang" class="btn-absensi bg-blue" style="background:#2563eb; flex:1;">
+          <i class="fa-solid fa-sign-in-alt"></i> DATANG
+        </button>
+        <button onclick="autoAbsen('Pulang')" id="btn-pulang" class="btn-absensi bg-orange" style="background:#ea580c; flex:1;">
+          <i class="fa-solid fa-sign-out-alt"></i> PULANG
+        </button>
       </div>
     </div>
   `;
+  
+  // Langsung aktifkan kamera saat menu dibuka
+  startCamera();
 }
-
 function switchAbsensiTab(tab, btn) {
   document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
   btn.classList.add("active");
