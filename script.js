@@ -341,12 +341,19 @@ async function submitAbsensiSelfie() {
 
   showLoading(true);
   try {
-    const uploadRes = await fetchAPI({ action: "uploadFoto", foto: capturedPhotoBase64, nama: currentUser.nama });
-    if (!uploadRes.success) throw new Error(uploadRes.message);
+    // FIX: uploadFoto pakai POST karena base64 foto terlalu panjang untuk URL (GET)
+    const uploadRes = await fetchAPI(
+      { action: "uploadFoto", nama: currentUser.nama },
+      { foto: capturedPhotoBase64 }  // <-- data besar dikirim lewat POST body
+    );
+    if (!uploadRes.success) throw new Error(uploadRes.message || "Upload foto gagal");
 
     const absenRes = await fetchAPI({
-      action: "absensi", nama: currentUser.nama,
-      latitude: lat, longitude: lng, linkFoto: uploadRes.linkFoto
+      action: "absensi",
+      nama: currentUser.nama,
+      latitude: lat,
+      longitude: lng,
+      linkFoto: uploadRes.linkFoto
     });
 
     if (absenRes.success) {
@@ -361,7 +368,7 @@ async function submitAbsensiSelfie() {
       document.getElementById("gpsLat").value = "";
       document.getElementById("gpsLng").value = "";
     } else {
-      showToast(absenRes.message, "error");
+      showToast(absenRes.message || "Absensi gagal", "error");
     }
   } catch (err) {
     showToast("Error: " + err.message, "error");
@@ -817,7 +824,7 @@ async function saveEditUser() {
   const id       = document.getElementById("edit-user-id").value;
   const nama     = document.getElementById("edit-nama").value.trim();
   const jabatan  = document.getElementById("edit-jabatan").value;
-  const status   = document.getElementById("edit-status-user").value;  // ← fix
+  const status   = document.getElementById("edit-status-user").value;
   const password = document.getElementById("edit-password").value.trim();
 
   showLoading(true);
@@ -940,7 +947,33 @@ function closeSidebar() {
 // ============================================
 // HELPERS
 // ============================================
-async function fetchAPI(params) {
+
+/**
+ * fetchAPI - Kirim request ke Google Apps Script
+ *
+ * FIX "Error: Load failed":
+ * - Jika ada `postData`, request dikirim via POST dengan body JSON
+ *   (dipakai untuk uploadFoto karena base64 terlalu panjang untuk URL GET)
+ * - Jika tidak ada `postData`, request tetap via GET seperti biasa
+ *
+ * @param {Object} params   - Data yang dikirim lewat query string (GET) atau body (POST)
+ * @param {Object} postData - (opsional) Data tambahan yang hanya dikirim via POST body
+ */
+async function fetchAPI(params, postData = null) {
+  // Jika ada postData → gabung semua dan kirim via POST
+  if (postData) {
+    const body = { ...params, ...postData };
+    const res = await fetch(API_URL, {
+      method: "POST",
+      // Google Apps Script butuh text/plain agar tidak trigger CORS preflight
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    return res.json();
+  }
+
+  // Tanpa postData → tetap GET (untuk login, getAbsensi, dll)
   const url = new URL(API_URL);
   Object.entries(params).forEach(([k, v]) => url.searchParams.append(k, v));
   const res = await fetch(url.toString());
