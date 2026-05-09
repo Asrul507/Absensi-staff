@@ -1,5 +1,5 @@
 // Ganti dengan URL Google Apps Script Anda
-const API_URL = "https://script.google.com/macros/s/AKfycbxwDSadUhCGm_zuNB5S-_KqgQWM-BrGTzh_5Xn1KoWV9PGgcs60LUR4V1YU3PWO2EFV/exec";
+const API_URL = "URL_ANDA";
 
 function showPage(pageId) {
     // Sembunyikan semua halaman
