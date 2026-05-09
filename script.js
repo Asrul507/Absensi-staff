@@ -2,7 +2,7 @@
 // GENIUS PRESENCE - script.js (Fixed)
 // ============================================
 
-const API_URL = "https://script.google.com/macros/s/AKfycby9bz31OAyjCsORDtbkxdY7yUUnB4lmxmxrJdLE0g3meXm6TVSN9tkLhXCQWjgM8xS5/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbz8km62kkUtViIm0d42xgFF8CYuOGIUo8t-Hmsi6mR0i0kIDfeVuJLEhmUU2fUZRRiu/exec";
 
 let currentUser = null;
 let cameraStream = null;
