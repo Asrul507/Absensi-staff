@@ -1,82 +1,115 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Genius Presence v4</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="style.css">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Genius Presence</title>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
 </head>
-<body class="bg-animate font-[Poppins] min-h-screen">
+<body>
 
-    <!-- LOGIN SECTION (Full Screen) -->
-    <div id="login-section" class="flex items-center justify-center min-h-screen p-4">
-        <div class="glass-card w-full max-w-md p-8">
-            <h1 class="text-3xl font-bold text-white text-center mb-2">GENIUS APP</h1>
-            <p class="text-blue-200 text-center text-sm mb-8">Hotel & Hospitality Management</p>
-            <div class="space-y-4">
-                <input type="email" id="email" class="glass-input w-full p-3 text-white outline-none" placeholder="Email">
-                <input type="password" id="pass" class="glass-input w-full p-3 text-white outline-none" placeholder="Password">
-                <button onclick="doLogin()" class="btn-3d w-full py-3 text-white font-bold rounded-xl">MASUK</button>
-            </div>
-        </div>
+  <!-- LOGIN PAGE -->
+  <div id="loginPage">
+    <div class="login-box">
+      <div class="login-logo">
+        <div class="login-icon">🏢</div>
+        <h1>GENIUS APP</h1>
+        <p>Living Plaza Balikpapan</p>
+      </div>
+      <div class="login-field">
+        <label><i class="fa-solid fa-envelope"></i> Email</label>
+        <input type="email" id="username" placeholder="email@perusahaan.com" autocomplete="email" />
+      </div>
+      <div class="login-field">
+        <label><i class="fa-solid fa-lock"></i> Password</label>
+        <input type="password" id="password" placeholder="Masukkan password"
+          onkeydown="if(event.key==='Enter') login()" />
+      </div>
+      <button class="btn-login" onclick="login()">
+        <i class="fa-solid fa-right-to-bracket"></i> Masuk
+      </button>
+    </div>
+  </div>
+
+  <!-- APP PAGE -->
+  <div id="appPage">
+    <div class="topbar">
+      <div class="topbar-left">
+        <button class="btn-menu" onclick="toggleSidebar()">
+          <i class="fa-solid fa-bars"></i>
+        </button>
+        <span class="topbar-title">GENIUS</span>
+      </div>
+      <div class="topbar-right">
+        <span id="userName"></span>
+        <button class="btn-logout-top" onclick="logout()" title="Keluar">
+          <i class="fa-solid fa-right-from-bracket"></i>
+        </button>
+      </div>
     </div>
 
-    <!-- MAIN APP STRUCTURE (Hidden by Default) -->
-    <div id="main-app" class="hidden flex min-h-screen">
-        
-        <!-- SIDEBAR (Hanya muncul di Desktop/Tablet) -->
-        <aside class="hidden md:flex flex-col w-64 glass-sidebar p-6 text-white">
-            <h2 class="text-xl font-bold mb-10 text-blue-400">GENIUS MENU</h2>
-            <nav class="space-y-6">
-                <a href="#" onclick="showPage('absen')" class="nav-link active"><i class="fa fa-camera mr-3"></i> Absensi</a>
-                <a href="#" onclick="showPage('pengajuan')" class="nav-link"><i class="fa fa-envelope mr-3"></i> Pengajuan</a>
-                <a href="#" onclick="showPage('profile')" class="nav-link"><i class="fa fa-user mr-3"></i> Profil</a>
-                <div id="admin-links" class="hidden pt-6 border-t border-white/10">
-                    <p class="text-xs text-gray-400 mb-4 uppercase">Admin Panel</p>
-                    <a href="#" onclick="showPage('admin-dashboard')" class="nav-link"><i class="fa fa-chart-line mr-3"></i> Monitoring</a>
-                </div>
-            </nav>
-        </aside>
+    <div id="overlay" onclick="closeSidebar()"></div>
+    <div id="sidebar"></div>
+    <div id="content"></div>
+    <nav id="bottomNav"></nav>
+  </div>
 
-        <!-- CONTENT AREA -->
-        <div class="flex-1 flex flex-col relative pb-20 md:pb-0">
-            <!-- Header Mobile -->
-            <header class="md:hidden p-4 flex justify-between items-center text-white">
-                <span class="font-bold tracking-widest">GENIUS</span>
-                <i class="fa fa-bell"></i>
-            </header>
-
-            <main class="p-6 overflow-y-auto">
-                <!-- Page: Absen -->
-                <section id="page-absen" class="page-content active">
-                    <div class="glass-card p-6 text-center text-white">
-                        <p class="mb-4 text-lg">Halo, <span id="user-name" class="font-bold text-blue-300">User</span></p>
-                        <div class="video-container mb-6 mx-auto">
-                            <video id="video" autoplay class="flip-horizontal"></video>
-                        </div>
-                        <button onclick="takeAbsen()" class="btn-scan w-full py-4 rounded-2xl font-bold uppercase shadow-lg">SCAN ABSENSI</button>
-                    </div>
-                </section>
-
-                <!-- Page: Placeholder -->
-                <section id="page-pengajuan" class="page-content hidden text-white">
-                    <h2 class="text-2xl font-bold">Pengajuan Izin</h2>
-                    <p class="text-gray-300">Menu pengajuan cuti dan sakit akan tampil di sini.</p>
-                </section>
-            </main>
-
-            <!-- BOTTOM NAVIGATION (Hanya muncul di HP) -->
-            <nav class="md:hidden fixed bottom-0 left-0 right-0 glass-nav flex justify-around p-4">
-                <button onclick="showPage('absen')" class="text-blue-400"><i class="fa fa-camera text-xl"></i></button>
-                <button onclick="showPage('pengajuan')" class="text-white/50"><i class="fa fa-paper-plane text-xl"></i></button>
-                <button onclick="showPage('profile')" class="text-white/50"><i class="fa fa-user text-xl"></i></button>
-            </nav>
-        </div>
+  <!-- MODAL EDIT USER -->
+  <div id="modal-edit-user" class="modal-bg">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-pen"></i> Edit User</h3>
+        <button class="modal-close" onclick="closeModalEdit()">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <input type="hidden" id="edit-user-id">
+      <div class="field">
+        <label>Nama Lengkap</label>
+        <input type="text" id="edit-nama" placeholder="Nama lengkap">
+      </div>
+      <div class="field">
+        <label>Email (tidak bisa diubah)</label>
+        <input type="text" id="edit-nip" disabled>
+      </div>
+      <div class="field">
+        <label>Role / Jabatan</label>
+        <select id="edit-jabatan">
+          <option value="Staff">Staff</option>
+          <option value="Admin">Admin</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Status Akun</label>
+        <select id="edit-status-user">
+          <option value="Aktif">Aktif</option>
+          <option value="Nonaktif">Nonaktif</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Password Baru <span style="color:#64748b;font-weight:400;">(kosongkan jika tidak ganti)</span></label>
+        <input type="password" id="edit-password" placeholder="Password baru">
+      </div>
+      <div class="modal-actions">
+        <button onclick="closeModalEdit()" class="btn-secondary" style="flex:1;">Batal</button>
+        <button onclick="saveEditUser()" class="btn-primary" style="flex:2;justify-content:center;">
+          <i class="fa-solid fa-save"></i> Simpan
+        </button>
+      </div>
     </div>
+  </div>
 
-    <canvas id="canvas" class="hidden"></canvas>
-    <script src="script.js"></script>
+  <!-- LOADING OVERLAY -->
+  <div id="loading-overlay">
+    <div class="loading-spinner"></div>
+    <span class="loading-text">Memproses...</span>
+  </div>
+
+  <!-- TOAST -->
+  <div id="toast-container"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+  <script src="script.js"></script>
 </body>
 </html>
