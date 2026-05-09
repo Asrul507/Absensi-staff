@@ -1014,3 +1014,55 @@ function getStatusClass(status) {
   if (s === "ditolak")   return "danger";
   return "warning";
 }
+
+async function autoAbsen(tipe) {
+    showLoading(true);
+    showToast(`Memproses Absen ${tipe}...`, "info");
+
+    try {
+        // 1. Ambil Lokasi GPS secara otomatis
+        const pos = await new Promise((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true });
+        });
+
+        // 2. Ambil Foto secara otomatis (Tanpa preview)
+        const video = document.getElementById("cameraVideo");
+        const canvas = document.getElementById("cameraCanvas");
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        canvas.getContext("2d").drawImage(video, 0, 0);
+        const fotoBase64 = canvas.toDataURL("image/jpeg", 0.6).split(",")[1];
+
+        // 3. Upload Foto
+        const uploadRes = await fetchAPI({ 
+            action: "uploadFoto", 
+            foto: fotoBase64, 
+            nama: currentUser.nama 
+        });
+
+        if (!uploadRes.success) throw new Error("Gagal upload foto");
+
+        // 4. Kirim Data Absen
+        const res = await fetchAPI({
+            action: "absensi",
+            nama: currentUser.nama,
+            latitude: pos.coords.latitude,
+            longitude: pos.coords.longitude,
+            linkFoto: uploadRes.linkFoto,
+            tipeKlik: tipe // Mengirim 'Datang' atau 'Pulang'
+        });
+
+        if (res.success) {
+            showToast(res.message, "success");
+            // Opsional: Redirect ke Riwayat
+            navigateTo('riwayat');
+        } else {
+            showToast(res.message, "error");
+        }
+
+    } catch (err) {
+        showToast("Gagal: " + err.message, "error");
+    } finally {
+        showLoading(false);
+    }
+}
