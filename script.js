@@ -15,16 +15,21 @@ async function sb(table, method = 'GET', body = null, query = '') {
       'Content-Type': 'application/json',
       'apikey': SUPA_ANON,
       'Authorization': `Bearer ${SUPA_ANON}`,
-      'Prefer': method === 'POST' ? 'return=representation' : 'return=representation',
+      'Prefer': 'return=representation',
     },
   };
   if (body) opts.body = JSON.stringify(body);
   const res = await fetch(url, opts);
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.message || `HTTP ${res.status}`);
-  }
   const txt = await res.text();
+  if (!res.ok) {
+    let errMsg = `HTTP ${res.status}`;
+    try {
+      const err = JSON.parse(txt);
+      errMsg = err.message || err.hint || err.details || errMsg;
+    } catch(_) {}
+    console.error('[Supabase Error]', res.status, txt);
+    throw new Error(errMsg);
+  }
   return txt ? JSON.parse(txt) : [];
 }
 
@@ -58,16 +63,65 @@ async function login() {
   if (!email || !pass) { toast('Isi email dan password', 'error'); return; }
   showLoading();
   try {
-    // Query user by email + password (plaintext for simplicity as per schema)
-    const res = await sb('users', 'GET', null,
-      `?email=eq.${encodeURIComponent(email)}&password=eq.${encodeURIComponent(pass)}&status_akun=eq.Aktif&select=*`);
-    if (!res.length) { toast('Email/password salah atau akun nonaktif', 'error'); return; }
-    currentUser = res[0];
+    // Step 1: Cari user berdasarkan email dulu
+    const byEmail = await sb('users', 'GET', null,
+      `?email=eq.${encodeURIComponent(email)}&select=*`);
+
+    if (!byEmail.length) {
+      toast('Email tidak ditemukan', 'error');
+      return;
+    }
+
+    const user = byEmail[0];
+
+    // Step 2: Cek password
+    if (user.password !== pass) {
+      toast('Password salah', 'error');
+      return;
+    }
+
+    // Step 3: Cek status akun
+    if (user.status_akun === 'Nonaktif') {
+      toast('Akun Anda dinonaktifkan, hubungi Admin', 'error');
+      return;
+    }
+
+    currentUser = user;
     localStorage.setItem('genius_user', JSON.stringify(currentUser));
     showApp();
   } catch(e) {
-    toast('Gagal login: ' + e.message, 'error');
+    console.error('Login error:', e);
+    // Jika RLS memblokir, minta user untuk cek Supabase
+    if (e.message.includes('permission') || e.message.includes('policy') || e.message.includes('401') || e.message.includes('403')) {
+      toast('Akses ditolak. RLS aktif — lihat petunjuk di bawah.', 'error');
+      showRLSGuide();
+    } else {
+      toast('Gagal login: ' + e.message, 'error');
+    }
   } finally { hideLoading(); }
+}
+
+function showRLSGuide() {
+  // Tampilkan panduan RLS jika diblokir
+  const box = document.getElementById('loginPage');
+  if (document.getElementById('rls-guide')) return;
+  const guide = document.createElement('div');
+  guide.id = 'rls-guide';
+  guide.style.cssText = `
+    margin-top:16px; background:rgba(239,68,68,0.12);
+    border:1px solid rgba(239,68,68,0.3); border-radius:14px;
+    padding:16px; font-size:13px; color:#fca5a5; line-height:1.7;
+  `;
+  guide.innerHTML = `
+    <b style="color:#f87171;">⚠️ Row Level Security (RLS) Aktif</b><br><br>
+    Ikuti langkah berikut di <b>Supabase Dashboard</b>:<br>
+    1. Buka <b>Table Editor → users</b><br>
+    2. Klik <b>RLS Disabled</b> → atau buka <b>Authentication → Policies</b><br>
+    3. Pilih tabel <b>users</b><br>
+    4. Klik <b>"Disable RLS"</b> (untuk development)<br><br>
+    <i style="color:#94a3b8;">Atau tambahkan Policy: Allow anon SELECT on users</i>
+  `;
+  box.appendChild(guide);
 }
 
 function logout() {
