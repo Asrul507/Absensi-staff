@@ -50,37 +50,103 @@ let rekapData     = [];
 let importRows    = [];
 let importBulan   = ‘’;
 
-const isadmin = () => currentUser?.role === ‘admin’;
+const isAdmin  = () => currentUser?.role?.toLowerCase().trim() === ‘admin’;
 const enc     = (s) => encodeURIComponent(s);
 const todayStr= () => new Date().toLocaleDateString(‘sv-SE’);
 
 // ==========================================
-// INIT
+// INIT — selalu refresh dari DB agar role selalu fresh
 // ==========================================
-document.addEventListener(‘DOMContentLoaded’, () => {
+document.addEventListener(‘DOMContentLoaded’, async () => {
 const saved = localStorage.getItem(‘genius_user’);
-if (saved) { currentUser = JSON.parse(saved); showApp(); }
+if (saved) {
+try {
+const u = JSON.parse(saved);
+// Re-fetch dari DB agar role/status selalu up-to-date
+const rows = await sb(‘users’,‘GET’,null,`?id_karyawan=eq.${enc(u.id_karyawan)}&select=*`);
+if (rows.length && rows[0].status_akun !== ‘Nonaktif’) {
+currentUser = rows[0];
+localStorage.setItem(‘genius_user’, JSON.stringify(currentUser));
+showApp(); return;
+}
+} catch(*) {}
+// Jika gagal fetch, pakai data lokal
+try {
+currentUser = JSON.parse(saved);
+showApp();
+} catch(*) { localStorage.removeItem(‘genius_user’); }
+}
 });
 
 // ==========================================
 // AUTH
 // ==========================================
+
+// Toggle antara form login dan signup
+function showSignup() {
+document.getElementById(‘form-login’).style.display  = ‘none’;
+document.getElementById(‘form-signup’).style.display = ‘block’;
+}
+function showLogin() {
+document.getElementById(‘form-signup’).style.display = ‘none’;
+document.getElementById(‘form-login’).style.display  = ‘block’;
+}
+
 async function login() {
 const email = document.getElementById(‘username’).value.trim();
 const pass  = document.getElementById(‘password’).value;
 if (!email || !pass) { toast(‘Isi email dan password’, ‘error’); return; }
 showLoading();
 try {
-const rows = await sb(‘users’, ‘GET’, null, `?email=eq.${enc(email)}&select=*`);
-if (!rows.length) { toast(‘Email tidak ditemukan’, ‘error’); return; }
+const rows = await sb(‘users’,‘GET’,null,`?email=eq.${enc(email)}&select=*`);
+if (!rows.length) { toast(‘Email tidak terdaftar’, ‘error’); return; }
 const u = rows[0];
-if (u.password !== pass) { toast(‘Password salah’, ‘error’); return; }
-if (u.status_akun === ‘Nonaktif’) { toast(‘Akun nonaktif, hubungi admin’, ‘error’); return; }
+if (u.password !== pass)         { toast(‘Password salah’, ‘error’); return; }
+if (u.status_akun === ‘Nonaktif’){ toast(‘Akun nonaktif, hubungi Admin’, ‘error’); return; }
 currentUser = u;
 localStorage.setItem(‘genius_user’, JSON.stringify(currentUser));
+// Debug: tampilkan role yang diterima
+console.log(’[LOGIN] role:’, u.role, ‘| isAdmin:’, u.role?.toLowerCase().trim() === ‘admin’);
 showApp();
 } catch(e) {
 toast(’Error: ’ + e.message, ‘error’);
+} finally { hideLoading(); }
+}
+
+async function signup() {
+const nama  = document.getElementById(‘su-nama’).value.trim();
+const email = document.getElementById(‘su-email’).value.trim();
+const pass  = document.getElementById(‘su-pass’).value;
+const pass2 = document.getElementById(‘su-pass2’).value;
+const role  = document.getElementById(‘su-role’).value;
+
+if (!nama||!email||!pass||!pass2) { toast(‘Lengkapi semua field’,‘error’); return; }
+if (pass !== pass2)  { toast(‘Konfirmasi password tidak cocok’,‘error’); return; }
+if (pass.length < 6) { toast(‘Password minimal 6 karakter’,‘error’); return; }
+
+showLoading();
+try {
+// Cek email sudah dipakai
+const cek = await sb(‘users’,‘GET’,null,`?email=eq.${enc(email)}&select=id_karyawan`);
+if (cek.length) { toast(‘Email sudah terdaftar’,‘error’); return; }
+
+```
+await sb('users','POST',{
+  nama_lengkap: nama,
+  email:        email,
+  password:     pass,
+  role:         role,
+  status_akun:  'Aktif',
+});
+toast(`Akun "${nama}" (${role}) berhasil dibuat! Silakan login.`,'success');
+// Reset form signup & balik ke login
+['su-nama','su-email','su-pass','su-pass2'].forEach(id=>document.getElementById(id).value='');
+showLogin();
+document.getElementById('username').value = email;
+```
+
+} catch(e) {
+toast(’Gagal daftar: ’+e.message,‘error’);
 } finally { hideLoading(); }
 }
 
@@ -111,7 +177,7 @@ navigateTo(‘dashboard’);
 function buildSidebar() {
 const u = currentUser;
 let nav = ‘’;
-if (isadmin()) {
+if (isAdmin()) {
 nav = ` <div class="sidebar-divider">ADMIN PANEL</div> <a class="sidebar-link" data-page="dashboard" onclick="go('dashboard')"><i class="fa-solid fa-gauge"></i> Dashboard</a> <a class="sidebar-link" data-page="rekap" onclick="go('rekap')"><i class="fa-solid fa-chart-bar"></i> Rekap Absensi</a> <a class="sidebar-link" data-page="kelola-jadwal" onclick="go('kelola-jadwal')"><i class="fa-solid fa-table"></i> Kelola Jadwal</a> <a class="sidebar-link" data-page="kelola-shift" onclick="go('kelola-shift')"><i class="fa-solid fa-clock"></i> Master Shift</a> <a class="sidebar-link" data-page="kelola-user" onclick="go('kelola-user')"><i class="fa-solid fa-users"></i> Karyawan</a> <a class="sidebar-link" data-page="approve-pengajuan" onclick="go('approve-pengajuan')"><i class="fa-solid fa-check-to-slot"></i> Approve Izin/Cuti</a> <div class="sidebar-divider">AKUN</div> <a class="sidebar-link" data-page="profil" onclick="go('profil')"><i class="fa-solid fa-user"></i> Profil</a>`;
 } else {
 nav = ` <div class="sidebar-divider">MENU</div> <a class="sidebar-link" data-page="dashboard" onclick="go('dashboard')"><i class="fa-solid fa-house"></i> Dashboard</a> <a class="sidebar-link" data-page="riwayat-absensi" onclick="go('riwayat-absensi')"><i class="fa-solid fa-fingerprint"></i> Riwayat Absensi</a> <a class="sidebar-link" data-page="jadwal-saya" onclick="go('jadwal-saya')"><i class="fa-solid fa-calendar-days"></i> Jadwal Saya</a> <a class="sidebar-link" data-page="pengajuan" onclick="go('pengajuan')"><i class="fa-solid fa-file-medical"></i> Pengajuan</a> <div class="sidebar-divider">AKUN</div> <a class="sidebar-link" data-page="profil" onclick="go('profil')"><i class="fa-solid fa-user"></i> Profil</a>`;
@@ -121,7 +187,7 @@ document.getElementById(‘sidebar’).innerHTML = ` <div class="sidebar-header"
 
 // ––––– BOTTOM NAV –––––
 function buildBottomNav() {
-const items = isadmin()
+const items = isAdmin()
 ? [
 { page:‘dashboard’,         icon:‘fa-gauge’,          label:‘Home’   },
 { page:‘rekap’,             icon:‘fa-chart-bar’,      label:‘Rekap’  },
@@ -159,7 +225,7 @@ document.getElementById(‘content’).innerHTML =
 `<div class="loading-state"><i class="fa-solid fa-spinner fa-spin"></i> Memuat...</div>`;
 
 const routes = {
-‘dashboard’:          isadmin() ? renderDashboardadmin : renderDashboardStaff,
+‘dashboard’:          isAdmin() ? renderDashboardAdmin : renderDashboardStaff,
 ‘rekap’:              renderRekap,
 ‘kelola-jadwal’:      renderKelolaJadwal,
 ‘kelola-shift’:       renderKelolaShift,
@@ -298,7 +364,7 @@ document.getElementById(‘modal-pengajuan’).classList.add(‘show’);
 // ==========================================
 // DASHBOARD ADMIN
 // ==========================================
-async function renderDashboardadmin() {
+async function renderDashboardAdmin() {
 const today = todayStr();
 const [y,m]  = today.split(’-’);
 const from   = `${y}-${m}-01`;
@@ -326,7 +392,7 @@ document.getElementById('content').innerHTML = `
   <div class="card" style="background:linear-gradient(135deg,#1e3a8a,#1d4ed8);border:none;margin-bottom:12px;">
     <div style="font-size:12px;opacity:.7;">${fmtDateLong(today)}</div>
     <div id="clock-display" style="font-size:24px;font-weight:800;margin:4px 0;">--:--:--</div>
-    <div style="font-size:13px;opacity:.8;">admin · <b>${currentUser.nama_lengkap.split(' ')[0]}</b></div>
+    <div style="font-size:13px;opacity:.8;">Admin · <b>${currentUser.nama_lengkap.split(' ')[0]}</b></div>
   </div>
 
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
