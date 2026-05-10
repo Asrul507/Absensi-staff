@@ -1,6 +1,6 @@
 // ==========================================
 // GENIUS PRESENCE APP - script.js v3.0
-// Role-based UI: Admin & Staf
+// Role-based UI: Admin & Staff
 // ==========================================
 
 const SUPA_URL  = ‘https://kuldbrivmpqpoyeilbav.supabase.co’;
