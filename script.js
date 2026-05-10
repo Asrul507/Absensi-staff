@@ -1,5 +1,5 @@
 // ============================================
-// GENIUS PRESENCE - SUPABASE FULL VERSION
+// GENIUS PRESENCE - FULL SUPABASE VERSION
 // ============================================
 
 const SUPABASE_URL = "https://kuldbrivmpqpoyeilbav.supabase.co";
@@ -12,202 +12,300 @@ let currentPage  = "absensi";
 let allShifts    = [];
 
 // ============================================
-// INIT & AUTH
+// INIT
 // ============================================
-document.addEventListener("DOMContentLoaded", async () => {
-    const saved = localStorage.getItem("currentUser");
-    if (saved) {
-        try { 
-            currentUser = JSON.parse(saved); 
-            showApp(); 
-        } catch(e) { 
-            localStorage.removeItem("currentUser"); 
-            showLogin(); 
-        }
-    } else { showLogin(); }
+document.addEventListener("DOMContentLoaded", () => {
+  const saved = localStorage.getItem("currentUser");
+  if (saved) {
+    try { currentUser = JSON.parse(saved); showApp(); }
+    catch(e) { localStorage.removeItem("currentUser"); showLogin(); }
+  } else { showLogin(); }
 });
 
-async function login() {
-    const email = (document.getElementById("username").value || "").trim();
-    const password = (document.getElementById("password").value || "").trim();
-    if (!email || !password) return showToast("Isi semua field!", "error");
-    
-    showLoading(true);
-    const { data, error } = await _supabase
-        .from('users')
-        .select('*')
-        .eq('email', email)
-        .eq('password', password)
-        .single();
+// ============================================
+// BRIDGE: FETCH API (MESIN PENGHUBUNG)
+// ============================================
+async function fetchAPI(params, postData = null) {
+  const action = params.action;
+  const today = new Date().toISOString().split('T')[0];
 
-    if (data && data.status_akun === 'Aktif') {
-        currentUser = { id: data.id_karyawan, nama: data.nama_lengkap, email: data.email, role: data.role };
-        localStorage.setItem("currentUser", JSON.stringify(currentUser));
-        showApp();
-    } else {
-        showToast("Login Gagal atau Akun Nonaktif", "error");
+  try {
+    // 1. LOGIN
+    if (action === "login") {
+      const { data, error } = await _supabase.from('users').select('*').eq('email', params.email).eq('password', params.password).single();
+      if (error || !data) return { success: false, message: "Email/Password Salah" };
+      return { success: true, user: { id: data.id_karyawan, nama: data.nama_lengkap, email: data.email, role: data.role } };
     }
-    showLoading(false);
+
+    // 2. STATUS ABSENSI
+    if (action === "getStatusAbsensi") {
+      const { data } = await _supabase.from('absensi').select('*').eq('nama', params.nama).eq('tanggal', today).single();
+      if (!data) return { success: true };
+      return { success: true, sudahMasuk: true, sudahPulang: !!data.waktu_pulang, waktuMasuk: data.waktu_masuk, waktuPulang: data.waktu_pulang, ketTelat: data.ket_telat };
+    }
+
+    // 3. UPLOAD FOTO
+    if (action === "uploadFoto") {
+      const fileName = `img_${Date.now()}.jpg`;
+      const blob = await (await fetch("data:image/jpeg;base64," + postData.foto)).blob();
+      await _supabase.storage.from('foto-absensi').upload(fileName, blob);
+      const { data: url } = _supabase.storage.from('foto-absensi').getPublicUrl(fileName);
+      return { success: true, linkFoto: url.publicUrl };
+    }
+
+    // 4. PROSES ABSENSI
+    if (action === "absensi") {
+      const jam = new Date().toLocaleTimeString('id-ID', { hour12: false });
+      if (params.tipe === "masuk") {
+        await _supabase.from('absensi').insert([{
+          nama: params.nama, tanggal: today, waktu_masuk: jam,
+          lat_masuk: params.latitude, lng_masuk: params.longitude, foto_masuk: params.linkFoto, status_masuk: 'Hadir'
+        }]);
+      } else {
+        await _supabase.from('absensi').update({
+          waktu_pulang: jam, lat_pulang: params.latitude, lng_pulang: params.longitude, foto_pulang: params.linkFoto, status_pulang: 'Selesai'
+        }).eq('nama', params.nama).eq('tanggal', today);
+      }
+      return { success: true };
+    }
+
+    // 5. MONITORING & KELOLA USER
+    if (action === "getAbsensiHarian") {
+      const { data } = await _supabase.from('absensi').select('*').eq('tanggal', today);
+      const { count } = await _supabase.from('users').select('*', { count: 'exact', head: true });
+      return { success: true, data: data || [], totalStaff: count };
+    }
+    if (action === "getUsers") {
+      const { data } = await _supabase.from('users').select('*');
+      return { success: true, data: data.map(u => ({ id: u.id_karyawan, nama: u.nama_lengkap, email: u.email, role: u.role, status: u.status_akun })) };
+    }
+
+    // 6. RIWAYAT
+    if (action === "getAbsensi") {
+      const { data } = await _supabase.from('absensi').select('*').eq('nama', params.nama).order('tanggal', { ascending: false });
+      return { success: true, data: data || [] };
+    }
+
+    // 7. SHIFT
+    if (action === "getShift") {
+      const { data } = await _supabase.from('shift').select('*');
+      return { success: true, data: data.map(s => ({ id: s.id, nama: s.nama_shift, jamMasuk: s.jam_masuk, jamPulang: s.jam_pulang, keterangan: s.keterangan })) };
+    }
+
+    return { success: false, message: "Action belum dimigrasi" };
+  } catch (e) { return { success: false, message: e.message }; }
+}
+
+// ============================================
+// FUNGSI TAMPILAN (SAMA PERSIS DENGAN KODE LAMA KAMU)
+// ============================================
+
+async function login() {
+  const email = (document.getElementById("username").value || "").trim();
+  const password = (document.getElementById("password").value || "").trim();
+  if (!email || !password) return showToast("Email dan password wajib diisi", "error");
+  showLoading(true);
+  try {
+    const res = await fetchAPI({ action: "login", email, password });
+    if (res.success) {
+      currentUser = res.user;
+      localStorage.setItem("currentUser", JSON.stringify(currentUser));
+      showToast("Selamat datang, " + currentUser.nama + "!", "success");
+      showApp();
+    } else showToast(res.message || "Login gagal", "error");
+  } catch(err) { showToast("Gagal terhubung ke server", "error"); }
+  finally { showLoading(false); }
+}
+
+function logout() {
+  if (!confirm("Yakin ingin keluar?")) return;
+  stopCamera(); currentUser = null;
+  localStorage.removeItem("currentUser");
+  showLogin(); showToast("Berhasil keluar", "info");
+}
+
+function showLogin() {
+  document.getElementById("loginPage").style.display = "flex";
+  document.getElementById("appPage").style.display   = "none";
 }
 
 function showApp() {
-    document.getElementById("loginPage").style.display = "none";
-    document.getElementById("appPage").style.display   = "block";
-    document.getElementById("userName").textContent    = currentUser.nama;
-    renderSidebar(); renderBottomNav(); navigateTo("absensi");
+  document.getElementById("loginPage").style.display = "none";
+  document.getElementById("appPage").style.display   = "block";
+  document.getElementById("userName").textContent    = currentUser.nama;
+  renderSidebar(); renderBottomNav(); navigateTo("absensi");
 }
 
-// ============================================
-// NAVIGATION SYSTEM
-// ============================================
+// --- SIDEBAR & NAV ---
+function renderSidebar() {
+  const isAdmin = currentUser.role === "Admin";
+  document.getElementById("sidebar").innerHTML = `
+    <div class="sidebar-header">
+      <div class="sidebar-logo">🏢</div>
+      <div><div class="sidebar-title">Living Plaza</div><div class="sidebar-sub">Balikpapan</div></div>
+    </div>
+    <div class="sidebar-user">
+      <div class="sidebar-avatar"><i class="fa-solid fa-user"></i></div>
+      <div><div class="sidebar-name">${currentUser.nama}</div><div class="sidebar-role">${currentUser.role}</div></div>
+    </div>
+    <nav class="sidebar-nav">
+      <a class="sidebar-link" onclick="navigateTo('absensi')"><i class="fa-solid fa-fingerprint"></i> Absensi</a>
+      <a class="sidebar-link" onclick="navigateTo('riwayat')"><i class="fa-solid fa-clock-rotate-left"></i> Riwayat</a>
+      <a class="sidebar-link" onclick="navigateTo('profil')"><i class="fa-solid fa-user-circle"></i> Profil</a>
+      ${isAdmin ? `
+      <div class="sidebar-divider">Admin Panel</div>
+      <a class="sidebar-link" onclick="navigateTo('monitoring')"><i class="fa-solid fa-chart-line"></i> Monitoring</a>
+      <a class="sidebar-link" onclick="navigateTo('master-shift')"><i class="fa-solid fa-list-check"></i> Master Shift</a>
+      <a class="sidebar-link" onclick="navigateTo('kelola-user')"><i class="fa-solid fa-users-cog"></i> Kelola User</a>
+      ` : ""}
+    </nav>
+    <button onclick="logout()" class="sidebar-logout"><i class="fa-solid fa-right-from-bracket"></i> Keluar</button>
+  `;
+}
+
+function renderBottomNav() {
+  const isAdmin = currentUser.role === "Admin";
+  document.getElementById("bottomNav").innerHTML = `
+    <button onclick="navigateTo('absensi')" id="nav-absensi" class="nav-item"><i class="fa-solid fa-fingerprint"></i><span>Absensi</span></button>
+    <button onclick="navigateTo('riwayat')" id="nav-riwayat" class="nav-item"><i class="fa-solid fa-clock-rotate-left"></i><span>Riwayat</span></button>
+    ${isAdmin 
+      ? `<button onclick="navigateTo('monitoring')" id="nav-monitoring" class="nav-item"><i class="fa-solid fa-chart-line"></i><span>Monitor</span></button>` 
+      : `<button onclick="navigateTo('profil')" id="nav-profil" class="nav-item"><i class="fa-solid fa-user-circle"></i><span>Profil</span></button>`}
+  `;
+}
+
 function navigateTo(page) {
-    currentPage = page; closeSidebar(); stopCamera();
-    document.querySelectorAll(".nav-item").forEach(b => b.classList.remove("active"));
-    const btn = document.getElementById("nav-" + page); if (btn) btn.classList.add("active");
-    
-    const content = document.getElementById("content");
-    content.innerHTML = "";
-
-    switch(page) {
-        case "absensi": renderAbsensi(); break;
-        case "riwayat": renderRiwayat(); break;
-        case "monitoring": renderMonitoring(); break;
-        case "kelola-user": renderKelolaUser(); break;
-        case "profil": renderProfil(); break;
-        // Tambahkan case lain sesuai kebutuhan menu kamu
-    }
+  currentPage = page; closeSidebar(); stopCamera();
+  document.querySelectorAll(".nav-item").forEach(b => b.classList.remove("active"));
+  const btn = document.getElementById("nav-" + page);
+  if (btn) btn.classList.add("active");
+  document.getElementById("content").innerHTML = "";
+  
+  if (page === "absensi") renderAbsensi();
+  else if (page === "monitoring") renderMonitoring();
+  else if (page === "riwayat") renderRiwayat();
+  else if (page === "profil") renderProfil();
+  else if (page === "master-shift") renderMasterShift();
+  else if (page === "kelola-user") renderKelolaUser();
 }
 
-// ============================================
-// CORE FEATURE: ABSENSI (Insert & Update)
-// ============================================
+// --- FUNGSI HALAMAN (ABSENSI, CAMERA, DLL) ---
 async function renderAbsensi() {
-    const today = new Date().toISOString().split('T')[0];
-    document.getElementById("content").innerHTML = `
-        <div class="page-header">
-            <h2><i class="fa-solid fa-fingerprint"></i> Absensi</h2>
-            <p>${new Date().toLocaleDateString('id-ID', {weekday:'long', day:'numeric', month:'long'})}</p>
-        </div>
-        <div id="status-absensi-box" class="card">Mengecek database...</div>
-        <div id="absensi-action-box"></div>`;
-    
-    const { data } = await _supabase.from('absensi').select('*').eq('nama', currentUser.nama).eq('tanggal', today).single();
-    
-    const actionBox = document.getElementById("absensi-action-box");
-    const statusBox = document.getElementById("status-absensi-box");
-
-    if (!data) {
-        statusBox.innerHTML = `<div class="status-tile pending">Belum Absen Masuk</div>`;
-        actionBox.innerHTML = buildAbsenUI("masuk");
-    } else if (!data.waktu_pulang) {
-        statusBox.innerHTML = `<div class="status-tile done">Masuk: ${data.waktu_masuk}</div>`;
-        actionBox.innerHTML = buildAbsenUI("pulang");
-    } else {
-        statusBox.innerHTML = `<div class="card absensi-done-card">✅ Absensi Selesai</div>`;
-    }
+  document.getElementById("content").innerHTML = `
+    <div class="page-header"><h2><i class="fa-solid fa-fingerprint"></i> Absensi</h2><p>${getTanggalHari()}</p></div>
+    <div id="status-absensi-box" class="card" style="text-align:center;padding:18px 12px;"><div class="loading-state">Mengecek status...</div></div>
+    <div id="absensi-action-box"></div>`;
+  await loadStatusAbsensi();
 }
 
-function buildAbsenUI(tipe) {
-    return `<div class="card">
-        <h3>Absen ${tipe.toUpperCase()}</h3>
-        <div class="camera-wrap"><video id="webcam" autoplay playsinline></video></div>
-        <canvas id="cameraCanvas" style="display:none;"></canvas>
-        <button onclick="eksekusiAbsen('${tipe}')" class="btn-absensi">Kirim Absen</button>
+async function loadStatusAbsensi() {
+  try {
+    const res = await fetchAPI({ action: "getStatusAbsensi", nama: currentUser.nama });
+    renderStatusAndAction(res);
+  } catch(err) { document.getElementById("status-absensi-box").innerHTML = "Error memuat status"; }
+}
+
+function renderStatusAndAction(res) {
+  const statusBox = document.getElementById("status-absensi-box");
+  const actionBox = document.getElementById("absensi-action-box");
+  const sudahMasuk = !!res.sudahMasuk, sudahPulang = !!res.sudahPulang;
+
+  statusBox.innerHTML = `
+    <div style="display:flex;gap:12px;justify-content:center;">
+      <div class="status-tile ${sudahMasuk?'done':'pending'}">Masuk: ${res.waktuMasuk || '--:--'}</div>
+      <div class="status-tile ${sudahPulang?'done':'pending'}">Pulang: ${res.waktuPulang || '--:--'}</div>
     </div>`;
-    setTimeout(() => startWebcam(), 100);
+
+  if (!sudahMasuk || !sudahPulang) {
+    actionBox.innerHTML = buildAbsensiCard(sudahMasuk ? "pulang" : "masuk");
+  } else {
+    actionBox.innerHTML = `<div class="card" style="text-align:center">✅ Absensi hari ini selesai!</div>`;
+  }
 }
 
-async function eksekusiAbsen(tipe) {
-    showLoading(true);
-    try {
-        const pos = await new Promise((res, rej) => navigator.geolocation.getCurrentPosition(res, rej));
-        const video = document.getElementById("webcam");
-        const canvas = document.getElementById("cameraCanvas");
-        canvas.width = 400; canvas.height = 300;
-        canvas.getContext("2d").drawImage(video, 0, 0, 400, 300);
-        const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.6));
-
-        const fileName = `${tipe}_${currentUser.nama}_${Date.now()}.jpg`;
-        await _supabase.storage.from('foto-absensi').upload(fileName, blob);
-        const { data: urlData } = _supabase.storage.from('foto-absensi').getPublicUrl(fileName);
-
-        const now = new Date();
-        const jam = now.toLocaleTimeString('id-ID', { hour12: false });
-        const tgl = now.toISOString().split('T')[0];
-
-        if (tipe === "masuk") {
-            await _supabase.from('absensi').insert([{
-                nama: currentUser.nama, tanggal: tgl, waktu_masuk: jam,
-                lat_masuk: pos.coords.latitude.toString(), lng_masuk: pos.coords.longitude.toString(),
-                foto_masuk: urlData.publicUrl, status_masuk: 'Hadir'
-            }]);
-        } else {
-            await _supabase.from('absensi').update({
-                waktu_pulang: jam, lat_pulang: pos.coords.latitude.toString(),
-                lng_pulang: pos.coords.longitude.toString(), foto_pulang: urlData.publicUrl, status_pulang: 'Pulang'
-            }).eq('nama', currentUser.nama).eq('tanggal', tgl);
-        }
-        showToast("Berhasil!", "success");
-        renderAbsensi();
-    } catch(e) { showToast(e.message, "error"); }
-    showLoading(false);
+function buildAbsensiCard(tipe) {
+  const isMasuk = tipe === "masuk";
+  return `
+    <div class="card">
+      <h3>Absen ${tipe.toUpperCase()}</h3>
+      <div class="camera-wrap" id="cam-${tipe}-wrap">
+        <video id="cam-video" autoplay playsinline style="width:100%; border-radius:12px;"></video>
+        <canvas id="cam-canvas" style="display:none;"></canvas>
+      </div>
+      <div id="gps-status" class="gps-status idle">GPS akan diambil otomatis</div>
+      <button onclick="bukaKameraAbsensi('${tipe}')" id="btn-open" class="btn-absensi">Buka Kamera</button>
+      <button onclick="ambilFotoDanKirim('${tipe}')" id="btn-capture" class="btn-absensi" style="display:none; background:#22c55e;">Kirim Absen</button>
+    </div>`;
 }
 
-// ============================================
-// ADMIN FEATURE: MONITORING (Real-time)
-// ============================================
+async function bukaKameraAbsensi(tipe) {
+  try {
+    cameraStream = await navigator.mediaDevices.getUserMedia({ video: true });
+    document.getElementById("cam-video").srcObject = cameraStream;
+    document.getElementById("btn-open").style.display = "none";
+    document.getElementById("btn-capture").style.display = "block";
+    
+    navigator.geolocation.getCurrentPosition((pos) => {
+      window.currentLat = pos.coords.latitude;
+      window.currentLng = pos.coords.longitude;
+      document.getElementById("gps-status").innerHTML = "📍 Lokasi Berhasil Diambil";
+    });
+  } catch(e) { showToast("Gagal buka kamera", "error"); }
+}
+
+async function ambilFotoDanKirim(tipe) {
+  showLoading(true);
+  const video = document.getElementById("cam-video");
+  const canvas = document.getElementById("cam-canvas");
+  canvas.width = 400; canvas.height = 300;
+  canvas.getContext("2d").drawImage(video, 0, 0, 400, 300);
+  const fotoBase64 = canvas.toDataURL("image/jpeg", 0.7).split(",")[1];
+
+  try {
+    const upload = await fetchAPI({ action: "uploadFoto", nama: currentUser.nama }, { foto: fotoBase64 });
+    const res = await fetchAPI({ 
+      action: "absensi", tipe, nama: currentUser.nama, 
+      latitude: window.currentLat, longitude: window.currentLng, linkFoto: upload.linkFoto 
+    });
+    if (res.success) {
+      showToast("Absen Berhasil!", "success");
+      renderAbsensi();
+    }
+  } catch(e) { showToast("Gagal kirim absen", "error"); }
+  finally { showLoading(false); stopCamera(); }
+}
+
+// --- MONITORING (ADMIN) ---
 async function renderMonitoring() {
-    const today = new Date().toISOString().split('T')[0];
-    document.getElementById("content").innerHTML = `<h3>Monitoring Hari Ini</h3><div id="monitor-list"></div>`;
-    
-    const { data } = await _supabase.from('absensi').select('*').eq('tanggal', today);
-    const list = document.getElementById("monitor-list");
-    
-    if (data) {
-        list.innerHTML = data.map(u => `
-            <div class="absensi-card">
-                <img src="${u.foto_masuk}" class="absensi-foto">
-                <div class="absensi-card-body">
-                    <b>${u.nama}</b><br>
-                    <small>In: ${u.waktu_masuk} | Out: ${u.waktu_pulang || '-'}</small>
-                </div>
-            </div>
-        `).join("");
-    }
+  document.getElementById("content").innerHTML = `<h3>Monitoring Kehadiran</h3><div id="monitor-list" class="card-list">Loading...</div>`;
+  const res = await fetchAPI({ action: "getAbsensiHarian" });
+  const list = document.getElementById("monitor-list");
+  if (res.data.length === 0) {
+    list.innerHTML = "Belum ada staff yang absen hari ini.";
+  } else {
+    list.innerHTML = res.data.map(item => `
+      <div class="absensi-card">
+        <img src="${item.foto_masuk}" class="absensi-foto">
+        <div class="absensi-card-body">
+          <b>${item.nama}</b><br>
+          <small>Masuk: ${item.waktu_masuk} | Pulang: ${item.waktu_pulang || '-'}</small>
+        </div>
+      </div>
+    `).join("");
+  }
 }
 
-// ============================================
-// ADMIN FEATURE: KELOLA USER
-// ============================================
-async function renderKelolaUser() {
-    document.getElementById("content").innerHTML = `<h3>Kelola User</h3><div id="user-list"></div>`;
-    const { data } = await _supabase.from('users').select('*');
-    const list = document.getElementById("user-list");
-    if(data) {
-        list.innerHTML = data.map(u => `
-            <div class="user-card">
-                <b>${u.nama_lengkap}</b> (${u.role})<br>
-                <small>${u.email}</small>
-            </div>
-        `).join("");
-    }
+// --- HELPERS ---
+function stopCamera() { if (cameraStream) { cameraStream.getTracks().forEach(t => t.stop()); cameraStream = null; } }
+function showLoading(show) { document.getElementById("loading-overlay").style.display = show ? "flex" : "none"; }
+function showToast(m, type) { 
+  const container = document.getElementById("toast-container");
+  const t = document.createElement("div");
+  t.className = `toast toast-${type} show`;
+  t.innerHTML = m;
+  container.appendChild(t);
+  setTimeout(() => t.remove(), 3000);
 }
-
-// ============================================
-// HELPERS (Toast, Loading, Camera)
-// ============================================
-async function startWebcam() {
-    try { cameraStream = await navigator.mediaDevices.getUserMedia({ video: true });
-    document.getElementById("webcam").srcObject = cameraStream; } catch(e) {}
-}
-function stopCamera() { if(cameraStream) cameraStream.getTracks().forEach(t => t.stop()); }
-function showLoading(s) { document.getElementById("loading-overlay").style.display = s ? "flex" : "none"; }
-function showToast(m, t) { 
-    const container = document.getElementById("toast-container");
-    const div = document.createElement("div");
-    div.className = `toast toast-${t} show`;
-    div.innerHTML = m;
-    container.appendChild(div);
-    setTimeout(() => div.remove(), 3000);
-}
-// Render Sidebar & BottomNav tetap menggunakan fungsi yang sudah kamu buat sebelumnya
+function getTanggalHari() { return new Date().toLocaleDateString("id-ID", { weekday:"long", day:"2-digit", month:"long", year:"numeric" }); }
+function toggleSidebar(){document.getElementById("sidebar").classList.toggle("open");document.getElementById("overlay").classList.toggle("show");}
+function closeSidebar(){document.getElementById("sidebar").classList.remove("open");document.getElementById("overlay").classList.remove("show");}
