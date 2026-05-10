@@ -3,12 +3,13 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Genius Presence - Supabase</title>
+  <title>Genius Presence</title>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
 
+  <!-- LOGIN PAGE -->
   <div id="loginPage">
     <div class="login-box">
       <div class="login-logo">
@@ -22,7 +23,8 @@
       </div>
       <div class="login-field">
         <label><i class="fa-solid fa-lock"></i> Password</label>
-        <input type="password" id="password" placeholder="Masukkan password" />
+        <input type="password" id="password" placeholder="Masukkan password"
+          onkeydown="if(event.key==='Enter') login()" />
       </div>
       <button class="btn-login" onclick="login()">
         <i class="fa-solid fa-right-to-bracket"></i> Masuk
@@ -30,7 +32,8 @@
     </div>
   </div>
 
-  <div id="appPage" style="display:none;">
+  <!-- APP PAGE -->
+  <div id="appPage">
     <div class="topbar">
       <div class="topbar-left">
         <button class="btn-menu" onclick="toggleSidebar()">
@@ -52,14 +55,201 @@
     <nav id="bottomNav"></nav>
   </div>
 
+  <!-- MODAL EDIT USER -->
+  <div id="modal-edit-user" class="modal-bg">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-pen"></i> Edit User</h3>
+        <button class="modal-close" onclick="closeModalEdit()">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <input type="hidden" id="edit-user-id">
+      <div class="field">
+        <label>Nama Lengkap</label>
+        <input type="text" id="edit-nama" placeholder="Nama lengkap">
+      </div>
+      <div class="field">
+        <label>Email (tidak bisa diubah)</label>
+        <input type="text" id="edit-nip" disabled>
+      </div>
+      <div class="field">
+        <label>Role / Jabatan</label>
+        <select id="edit-jabatan">
+          <option value="Staff">Staff</option>
+          <option value="Admin">Admin</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Status Akun</label>
+        <select id="edit-status-user">
+          <option value="Aktif">Aktif</option>
+          <option value="Nonaktif">Nonaktif</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Password Baru <span style="color:#64748b;font-weight:400;">(kosongkan jika tidak ganti)</span></label>
+        <input type="password" id="edit-password" placeholder="Password baru">
+      </div>
+      <div class="modal-actions">
+        <button onclick="closeModalEdit()" class="btn-secondary" style="flex:1;">Batal</button>
+        <button onclick="saveEditUser()" class="btn-primary" style="flex:2;justify-content:center;">
+          <i class="fa-solid fa-save"></i> Simpan
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL TAMBAH USER -->
+  <div id="modal-add-user" class="modal-bg">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-user-plus"></i> Tambah Karyawan</h3>
+        <button class="modal-close" onclick="closeModalAddUser()">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div class="field">
+        <label>Nama Lengkap</label>
+        <input type="text" id="add-nama" placeholder="Nama lengkap">
+      </div>
+      <div class="field">
+        <label>Email</label>
+        <input type="email" id="add-email" placeholder="email@perusahaan.com">
+      </div>
+      <div class="field">
+        <label>Password</label>
+        <input type="password" id="add-password" placeholder="Password">
+      </div>
+      <div class="field">
+        <label>Role</label>
+        <select id="add-role">
+          <option value="Staff">Staff</option>
+          <option value="Admin">Admin</option>
+        </select>
+      </div>
+      <div class="modal-actions">
+        <button onclick="closeModalAddUser()" class="btn-secondary" style="flex:1;">Batal</button>
+        <button onclick="saveAddUser()" class="btn-primary" style="flex:2;justify-content:center;">
+          <i class="fa-solid fa-save"></i> Simpan
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL TAMBAH SHIFT -->
+  <div id="modal-shift" class="modal-bg">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-clock"></i> <span id="modal-shift-title">Tambah Shift</span></h3>
+        <button class="modal-close" onclick="closeModalShift()">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <input type="hidden" id="shift-id">
+      <div class="field">
+        <label>Nama Shift</label>
+        <input type="text" id="shift-nama" placeholder="Contoh: Pagi, Sore, Malam">
+      </div>
+      <div class="field">
+        <label>Jam Masuk</label>
+        <input type="time" id="shift-masuk">
+      </div>
+      <div class="field">
+        <label>Jam Pulang</label>
+        <input type="time" id="shift-pulang">
+      </div>
+      <div class="field">
+        <label>Keterangan</label>
+        <input type="text" id="shift-ket" placeholder="Opsional">
+      </div>
+      <div class="modal-actions">
+        <button onclick="closeModalShift()" class="btn-secondary" style="flex:1;">Batal</button>
+        <button onclick="saveShift()" class="btn-primary" style="flex:2;justify-content:center;">
+          <i class="fa-solid fa-save"></i> Simpan
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL ABSEN MASUK -->
+  <div id="modal-absen" class="modal-bg">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-camera"></i> <span id="modal-absen-title">Absen Masuk</span></h3>
+        <button class="modal-close" onclick="closeModalAbsen()">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div id="camera-container">
+        <video id="camera-video" autoplay playsinline></video>
+        <canvas id="camera-canvas" style="display:none;"></canvas>
+      </div>
+      <div id="foto-preview-box" style="display:none;text-align:center;">
+        <img id="foto-preview" style="max-width:100%;border-radius:8px;" />
+      </div>
+      <div id="lokasi-info" style="margin:8px 0;font-size:0.85rem;color:#64748b;">
+        <i class="fa-solid fa-location-dot"></i> Mengambil lokasi...
+      </div>
+      <div class="modal-actions" id="absen-actions">
+        <button onclick="ambilFoto()" class="btn-primary" style="flex:1;" id="btn-foto">
+          <i class="fa-solid fa-camera"></i> Ambil Foto
+        </button>
+      </div>
+      <div class="modal-actions" id="absen-confirm-actions" style="display:none;">
+        <button onclick="retakeFoto()" class="btn-secondary" style="flex:1;">
+          <i class="fa-solid fa-rotate-left"></i> Ulangi
+        </button>
+        <button onclick="submitAbsen()" class="btn-primary" style="flex:2;justify-content:center;">
+          <i class="fa-solid fa-check"></i> Konfirmasi
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL PENGAJUAN -->
+  <div id="modal-pengajuan" class="modal-bg">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-file-medical"></i> Ajukan Izin/Sakit</h3>
+        <button class="modal-close" onclick="closeModalPengajuan()">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div class="field">
+        <label>Tipe Izin</label>
+        <select id="pengajuan-tipe">
+          <option value="Sakit">Sakit</option>
+          <option value="Izin">Izin</option>
+          <option value="Cuti">Cuti</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Keterangan</label>
+        <textarea id="pengajuan-ket" placeholder="Jelaskan alasan..." rows="3" style="width:100%;padding:8px;border-radius:8px;border:1px solid #e2e8f0;resize:none;font-family:inherit;"></textarea>
+      </div>
+      <div class="field">
+        <label>Link Surat (Foto/Drive) - Opsional</label>
+        <input type="text" id="pengajuan-link" placeholder="https://drive.google.com/...">
+      </div>
+      <div class="modal-actions">
+        <button onclick="closeModalPengajuan()" class="btn-secondary" style="flex:1;">Batal</button>
+        <button onclick="submitPengajuan()" class="btn-primary" style="flex:2;justify-content:center;">
+          <i class="fa-solid fa-paper-plane"></i> Kirim
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- LOADING OVERLAY -->
   <div id="loading-overlay">
     <div class="loading-spinner"></div>
     <span class="loading-text">Memproses...</span>
   </div>
+
+  <!-- TOAST -->
   <div id="toast-container"></div>
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
   <script src="script.js"></script>
 </body>
 </html>
