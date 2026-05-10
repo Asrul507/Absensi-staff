@@ -618,6 +618,144 @@ async function jalankanImport() {
     showLoading(false);
   }
 }
+async function previewImport() {
+  const bulan  = document.getElementById("import-bulan").value || "";
+  const preBox = document.getElementById("import-preview-box");
+  const btnImp = document.getElementById("btn-import");
+  preBox.innerHTML = `<div class="loading-state"><i class="fa-solid fa-spinner fa-spin"></i> Membaca sheet JadwalImport...</div>`;
+  btnImp.disabled = true;
+
+  try {
+    const res = await fetchAPI({ action: "previewImport", role: currentUser.role, bulan });
+    if (!res.success) {
+      preBox.innerHTML = `<div class="card" style="border-left:4px solid #ef4444;padding:14px;">
+        <p style="color:#ef4444;font-weight:600;"><i class="fa-solid fa-circle-exclamation"></i> ${res.message}</p>
+      </div>`;
+      return;
+    }
+
+    // Ringkasan
+    const adaError = res.totalError > 0;
+    let html = `
+      <div class="card" style="padding:14px;">
+        <h3 style="font-size:14px;margin-bottom:10px;"><i class="fa-solid fa-table-list"></i> Hasil Preview</h3>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
+          <div class="import-stat-box blue"><div class="import-stat-num">${res.totalStaff}</div><div class="import-stat-lab">Staff</div></div>
+          <div class="import-stat-box green"><div class="import-stat-num">${res.totalHari}</div><div class="import-stat-lab">Hari</div></div>
+          <div class="import-stat-box teal"><div class="import-stat-num">${res.totalOk}</div><div class="import-stat-lab">Jadwal OK</div></div>
+          ${adaError ? `<div class="import-stat-box red"><div class="import-stat-num">${res.totalError}</div><div class="import-stat-lab">Error</div></div>` : ""}
+        </div>`;
+
+    // Tampilkan error dulu jika ada
+    if (adaError) {
+      const errors = res.preview.filter(p => !p.valid);
+      html += `
+        <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:10px;margin-bottom:12px;">
+          <p style="color:#dc2626;font-weight:600;font-size:13px;margin-bottom:6px;">
+            <i class="fa-solid fa-triangle-exclamation"></i> ${errors.length} entri bermasalah — perbaiki di sheet sebelum import:
+          </p>
+          ${errors.slice(0,10).map(e => `
+            <div style="font-size:12px;color:#7f1d1d;padding:2px 0;">
+              <b>${e.nama}</b> — ${e.tanggal}: ${e.pesan}
+            </div>`).join("")}
+          ${errors.length > 10 ? `<p style="font-size:12px;color:#7f1d1d;margin-top:4px;">...dan ${errors.length-10} lainnya</p>` : ""}
+        </div>`;
+    }
+
+    // Tabel preview per staff
+    // Kelompokkan per nama
+    const byNama = {};
+    res.preview.filter(p => p.valid && p.shiftNama !== "Libur").forEach(p => {
+      if (!byNama[p.nama]) byNama[p.nama] = [];
+      byNama[p.nama].push(p);
+    });
+
+    const namaList = Object.keys(byNama).sort();
+    if (namaList.length) {
+      html += `<p style="font-size:13px;font-weight:600;margin-bottom:8px;color:#374151;">Preview Jadwal (non-libur):</p>`;
+      html += `<div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;font-size:12px;">
+          <thead>
+            <tr style="background:#f8fafc;">
+              <th style="padding:6px 10px;text-align:left;border-bottom:1px solid #e2e8f0;">Nama</th>
+              <th style="padding:6px 10px;text-align:left;border-bottom:1px solid #e2e8f0;">Tanggal</th>
+              <th style="padding:6px 10px;text-align:left;border-bottom:1px solid #e2e8f0;">Shift</th>
+              <th style="padding:6px 10px;text-align:left;border-bottom:1px solid #e2e8f0;">Jam Masuk</th>
+              <th style="padding:6px 10px;text-align:left;border-bottom:1px solid #e2e8f0;">Jam Pulang</th>
+            </tr>
+          </thead>
+          <tbody>`;
+
+      namaList.forEach(nama => {
+        byNama[nama].forEach((item, idx) => {
+          const c = getShiftColor(item.shiftNama);
+          html += `
+            <tr style="border-bottom:1px solid #f1f5f9;">
+              <td style="padding:5px 10px;">${idx === 0 ? `<b>${nama}</b>` : ""}</td>
+              <td style="padding:5px 10px;color:#64748b;">${formatTanggal(item.tanggal)}</td>
+              <td style="padding:5px 10px;">
+                <span style="background:${c.bg};color:${c.text};padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;">${item.shiftNama}</span>
+              </td>
+              <td style="padding:5px 10px;color:#3b82f6;">${item.jamMasuk || "-"}</td>
+              <td style="padding:5px 10px;color:#f97316;">${item.jamPulang || "-"}</td>
+            </tr>`;
+        });
+      });
+      html += `</tbody></table></div>`;
+    }
+
+    html += `</div>`;
+    preBox.innerHTML = html;
+
+    // Enable tombol import hanya jika tidak ada error (atau biarkan import meski ada error)
+    btnImp.disabled = false;
+    if (adaError) {
+      btnImp.style.background = "#f97316";
+      btnImp.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> Import (ada ${res.totalError} error, akan dilewati)`;
+    } else {
+      btnImp.style.background = "";
+      btnImp.innerHTML = `<i class="fa-solid fa-file-import"></i> Import Sekarang (${res.totalOk} jadwal)`;
+    }
+
+  } catch(err) {
+    preBox.innerHTML = `<div class="empty-state error"><p>Gagal membaca sheet: ${err.message}</p></div>`;
+  }
+}
+
+async function jalankanImport() {
+  const bulan  = document.getElementById("import-bulan").value || "";
+  const btnImp = document.getElementById("btn-import");
+  btnImp.disabled = true;
+
+  showLoading(true);
+  try {
+    const res = await fetchAPI({ action: "importJadwal", role: currentUser.role, bulan });
+    if (res.success) {
+      showToast("✅ " + res.message, "success");
+      // Tampilkan ringkasan hasil
+      document.getElementById("import-preview-box").innerHTML = `
+        <div class="card" style="border-left:4px solid #22c55e;padding:14px;">
+          <p style="font-weight:700;color:#15803d;font-size:15px;margin-bottom:8px;">
+            <i class="fa-solid fa-circle-check"></i> Import Berhasil!
+          </p>
+          <p style="font-size:13px;color:#374151;">
+            ✅ ${res.created} jadwal baru ditambahkan<br>
+            🔄 ${res.updated} jadwal diperbarui<br>
+            📅 ${res.skipped} hari libur dilewati<br>
+            ${res.errors && res.errors.length ? `⚠️ ${res.errors.length} error dilewati` : ""}
+          </p>
+        </div>`;
+    } else {
+      showToast(res.message, "error");
+      btnImp.disabled = false;
+    }
+  } catch(err) {
+    showToast("Error: " + err.message, "error");
+    btnImp.disabled = false;
+  } finally {
+    showLoading(false);
+  }
+}
 
 // ============================================
 // PAGE: ATUR JADWAL MANUAL (Admin)
