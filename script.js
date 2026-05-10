@@ -3,7 +3,7 @@
 // Versi: Shift + Import Jadwal
 // ============================================
 
-const API_URL = "https://script.google.com/macros/s/AKfycby9bz31OAyjCsORDtbkxdY7yUUnB4lmxmxrJdLE0g3meXm6TVSN9tkLhXCQWjgM8xS5/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbx-eszFwsGUcsHRv80di8J6EuBJw-QplluVCgE5s9ZruT1x8dXzokBGo4mP7J1vwlpT/exec";
 
 let currentUser  = null;
 let cameraStream = null;
