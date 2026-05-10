@@ -108,27 +108,42 @@ async function login() {
   
   showLoading(true);
   try {
-    // Kita panggil Supabase
+    // Kita hapus .single() dan ganti dengan cara yang lebih aman
     const { data, error } = await _supabase
       .from('users')
       .select('*')
       .eq('email', email)
-      .eq('password', password)
-      .single();
+      .eq('password', password);
 
     if (error) {
-      // INI PENTING: Jika error, kita munculkan pesan aslinya di Console
       console.error("Supabase Error:", error);
-      showToast("Error: " + error.message, "error"); 
-    } else if (data) {
-      currentUser = { id: data.id_karyawan, nama: data.nama_lengkap, email: data.email, role: data.role };
+      showToast("Gagal cek database: " + error.message, "error");
+      return;
+    }
+
+    // Kita cek apakah data ditemukan
+    if (data && data.length > 0) {
+      // Jika ada lebih dari 1, kita ambil yang pertama saja [0]
+      const user = data[0]; 
+      
+      currentUser = { 
+        id: user.id_karyawan, 
+        nama: user.nama_lengkap, 
+        email: user.email, 
+        role: user.role 
+      };
+      
       localStorage.setItem("currentUser", JSON.stringify(currentUser));
       showToast("Selamat datang!", "success");
       showApp();
+    } else {
+      // Jika data kosong (length == 0)
+      showToast("Email atau Password salah", "error");
     }
+    
   } catch(err) {
     console.error("JS Error:", err);
-    showToast("Gagal terhubung ke database", "error");
+    showToast("Terjadi kesalahan sistem", "error");
   } finally {
     showLoading(false);
   }
