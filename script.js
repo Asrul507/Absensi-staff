@@ -103,18 +103,35 @@ async function fetchAPI(params, postData = null) {
 async function login() {
   const email = (document.getElementById("username").value || "").trim();
   const password = (document.getElementById("password").value || "").trim();
+  
   if (!email || !password) return showToast("Email dan password wajib diisi", "error");
+  
   showLoading(true);
   try {
-    const res = await fetchAPI({ action: "login", email, password });
-    if (res.success) {
-      currentUser = res.user;
+    // Kita panggil Supabase
+    const { data, error } = await _supabase
+      .from('users')
+      .select('*')
+      .eq('email', email)
+      .eq('password', password)
+      .single();
+
+    if (error) {
+      // INI PENTING: Jika error, kita munculkan pesan aslinya di Console
+      console.error("Supabase Error:", error);
+      showToast("Error: " + error.message, "error"); 
+    } else if (data) {
+      currentUser = { id: data.id_karyawan, nama: data.nama_lengkap, email: data.email, role: data.role };
       localStorage.setItem("currentUser", JSON.stringify(currentUser));
-      showToast("Selamat datang, " + currentUser.nama + "!", "success");
+      showToast("Selamat datang!", "success");
       showApp();
-    } else showToast(res.message || "Login gagal", "error");
-  } catch(err) { showToast("Gagal terhubung ke server", "error"); }
-  finally { showLoading(false); }
+    }
+  } catch(err) {
+    console.error("JS Error:", err);
+    showToast("Gagal terhubung ke database", "error");
+  } finally {
+    showLoading(false);
+  }
 }
 
 function logout() {
