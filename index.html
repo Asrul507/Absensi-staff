@@ -3,13 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Genius Presence</title>
+  <title>Genius Presence - Supabase</title>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
 
-  <!-- LOGIN PAGE -->
   <div id="loginPage">
     <div class="login-box">
       <div class="login-logo">
@@ -23,8 +22,7 @@
       </div>
       <div class="login-field">
         <label><i class="fa-solid fa-lock"></i> Password</label>
-        <input type="password" id="password" placeholder="Masukkan password"
-          onkeydown="if(event.key==='Enter') login()" />
+        <input type="password" id="password" placeholder="Masukkan password" />
       </div>
       <button class="btn-login" onclick="login()">
         <i class="fa-solid fa-right-to-bracket"></i> Masuk
@@ -32,8 +30,7 @@
     </div>
   </div>
 
-  <!-- APP PAGE -->
-  <div id="appPage">
+  <div id="appPage" style="display:none;">
     <div class="topbar">
       <div class="topbar-left">
         <button class="btn-menu" onclick="toggleSidebar()">
@@ -55,58 +52,10 @@
     <nav id="bottomNav"></nav>
   </div>
 
-  <!-- MODAL EDIT USER -->
-  <div id="modal-edit-user" class="modal-bg">
-    <div class="modal-box">
-      <div class="modal-header">
-        <h3><i class="fa-solid fa-pen"></i> Edit User</h3>
-        <button class="modal-close" onclick="closeModalEdit()">
-          <i class="fa-solid fa-xmark"></i>
-        </button>
-      </div>
-      <input type="hidden" id="edit-user-id">
-      <div class="field">
-        <label>Nama Lengkap</label>
-        <input type="text" id="edit-nama" placeholder="Nama lengkap">
-      </div>
-      <div class="field">
-        <label>Email (tidak bisa diubah)</label>
-        <input type="text" id="edit-nip" disabled>
-      </div>
-      <div class="field">
-        <label>Role / Jabatan</label>
-        <select id="edit-jabatan">
-          <option value="Staff">Staff</option>
-          <option value="Admin">Admin</option>
-        </select>
-      </div>
-      <div class="field">
-        <label>Status Akun</label>
-        <select id="edit-status-user">
-          <option value="Aktif">Aktif</option>
-          <option value="Nonaktif">Nonaktif</option>
-        </select>
-      </div>
-      <div class="field">
-        <label>Password Baru <span style="color:#64748b;font-weight:400;">(kosongkan jika tidak ganti)</span></label>
-        <input type="password" id="edit-password" placeholder="Password baru">
-      </div>
-      <div class="modal-actions">
-        <button onclick="closeModalEdit()" class="btn-secondary" style="flex:1;">Batal</button>
-        <button onclick="saveEditUser()" class="btn-primary" style="flex:2;justify-content:center;">
-          <i class="fa-solid fa-save"></i> Simpan
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- LOADING OVERLAY -->
   <div id="loading-overlay">
     <div class="loading-spinner"></div>
     <span class="loading-text">Memproses...</span>
   </div>
-
-  <!-- TOAST -->
   <div id="toast-container"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
