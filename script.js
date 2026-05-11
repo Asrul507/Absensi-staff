@@ -2,8 +2,8 @@
 // GENIUS PRESENCE — script.js v5.0 (FIXED LOGIN)
 // ============================================================
 
-const SUPA_URL = ‘https://kuldbrivmpqpoyeilbav.supabase.co’;
-const SUPA_KEY = ‘eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt1bGRicml2bXBxcG95ZWlsYmF2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgzOTI4NDMsImV4cCI6MjA5Mzk2ODg0M30.je9yMizaJs5OJ4yuaxnw2vwPeGy1F_0j75SMU1IZZso’;
+const SUPA_URL = ‘'https://bllqpxhcykzshpzbdogy.supabase.co'’;
+const SUPA_KEY = ‘eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJsbHFweGhjeWt6c2hwemJkb2d5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0Njg3NTEsImV4cCI6MjA5NDA0NDc1MX0.odqXIJbMDQEBksX012ZgPOtPQXCdPMvo_bbO90fuUQw’;
 
 // ── Supabase fetch ──────────────────────────────────────────
 async function sb(table, method, body, qs) {
