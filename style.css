@@ -1,49 +1,86 @@
 /* =========================
-   FIX GLOBAL MOBILE OVERFLOW
+   RESET
 ========================= */
-html, body {
-  width: 100%;
-  overflow-x: hidden;
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: system-ui, -apple-system, Segoe UI, sans-serif;
+  background: #0b1220;
+  color: #e5e7eb;
 }
 
 /* =========================
-   CONTENT RESPONSIVE FIX
+   LAYOUT MOBILE FIRST
 ========================= */
-#content {
-  margin-left: 0;
-  padding: 12px;
-  padding-bottom: 80px;
-}
-
-/* desktop sidebar tetap jalan */
-@media(min-width: 900px) {
-  #content {
-    margin-left: 260px;
-    padding: 20px;
-  }
+#appPage {
+  display: flex;
+  min-height: 100vh;
 }
 
 /* =========================
-   SIDEBAR FIX MOBILE
+   SIDEBAR (MOBILE DRAWER)
 ========================= */
 #sidebar {
+  position: fixed;
+  top: 0;
+  left: -280px;
   width: 260px;
-  transform: translateX(-100%);
-  transition: 0.3s ease;
+  height: 100%;
+  background: #111827;
+  transition: .3s;
   z-index: 999;
+  padding: 16px;
+  border-right: 1px solid rgba(255,255,255,0.05);
 }
 
 #sidebar.open {
-  transform: translateX(0);
+  left: 0;
 }
 
-/* overlay wajib */
+.sidebar-header {
+  padding: 12px;
+  margin-bottom: 10px;
+}
+
+.sb-name {
+  font-size: 18px;
+  font-weight: 800;
+  color: #60a5fa;
+}
+
+.sb-role {
+  font-size: 12px;
+  opacity: .7;
+}
+
+.sidebar-nav a {
+  display: flex;
+  gap: 10px;
+  padding: 12px;
+  margin-bottom: 6px;
+  border-radius: 10px;
+  text-decoration: none;
+  color: #e5e7eb;
+  background: rgba(255,255,255,0.03);
+}
+
+.sidebar-nav a:hover {
+  background: #1f2937;
+}
+
+/* =========================
+   OVERLAY
+========================= */
 #overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.5);
+  background: rgba(0,0,0,.5);
   display: none;
-  z-index: 998;
+  z-index: 900;
 }
 
 #overlay.active {
@@ -51,213 +88,136 @@ html, body {
 }
 
 /* =========================
-   CARD FIX MOBILE
+   CONTENT AREA
+========================= */
+#content {
+  flex: 1;
+  padding: 14px;
+  margin-left: 0;
+}
+
+/* =========================
+   CARD STYLE (3D SOFT)
 ========================= */
 .card {
-  width: 100%;
-  padding: 14px;
-  margin-bottom: 10px;
+  background: linear-gradient(145deg, #111827, #0f172a);
+  border: 1px solid rgba(255,255,255,0.06);
   border-radius: 14px;
+  padding: 14px;
+  margin-bottom: 12px;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.35);
 }
 
 /* =========================
-   BUTTON FIX MOBILE
+   FORM
+========================= */
+.field {
+  margin-bottom: 10px;
+}
+
+.field label {
+  font-size: 12px;
+  opacity: .7;
+  display: block;
+  margin-bottom: 5px;
+}
+
+input, select, textarea {
+  width: 100%;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: #0f172a;
+  color: #fff;
+  outline: none;
+}
+
+/* =========================
+   BUTTON (ANTI TUMPUK)
 ========================= */
 button {
-  width: auto;
-  max-width: 100%;
-  padding: 10px 12px;
-  font-size: 14px;
-}
-
-@media(max-width: 600px) {
-  button {
-    width: 100%;
-  }
-}
-
-/* =========================
-   FORM FIX MOBILE
-========================= */
-input, select, textarea {
-  font-size: 14px;
+  width: 100%;
   padding: 10px;
+  border-radius: 10px;
+  border: none;
+  background: #2563eb;
+  color: white;
+  font-weight: 600;
+  margin-top: 10px;
+}
+
+button:hover {
+  background: #1d4ed8;
 }
 
 /* =========================
-   TABLE FIX (INI PENTING)
+   TABLE (FIX MOBILE OVERFLOW)
 ========================= */
 table {
   width: 100%;
-  min-width: 600px;
   border-collapse: collapse;
+  font-size: 13px;
 }
 
-.table-wrapper {
-  width: 100%;
+th, td {
+  padding: 8px;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  text-align: left;
+  color: #e5e7eb;
+}
+
+th {
+  color: #93c5fd;
+}
+
+.tbl-wrap {
   overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-}
-
-/* bikin scroll horizontal aman */
-@media(max-width: 768px) {
-  table {
-    min-width: 700px;
-  }
-
-  th, td {
-    font-size: 12px;
-    padding: 8px;
-    white-space: nowrap;
-  }
 }
 
 /* =========================
-   PENGAJUAN CARD FIX
-========================= */
-.pengajuan-card {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.pengajuan-card .pq-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-/* tombol approve/reject di mobile */
-@media(max-width: 600px) {
-  .pq-actions button {
-    flex: 1;
-    width: 100%;
-  }
-}
-
-/* =========================
-   DASHBOARD GRID FIX
-========================= */
-.stats-grid {
-  grid-template-columns: 1fr;
-}
-
-@media(min-width: 700px) {
-  .stats-grid {
-    grid-template-columns: 1fr 1fr;
-  }
-}
-
-/* =========================
-   LOGIN FIX MOBILE
-========================= */
-.login-box {
-  width: 100%;
-  padding: 18px;
-}
-
-/* =========================
-   PREVENT OVERLAP TEXT
-========================= */
-.card, .pengajuan-card {
-  word-wrap: break-word;
-  overflow-wrap: break-word;
-}
-
-/* =========================
-   RESTORE COLOR SYSTEM (WAJIB)
-========================= */
-:root {
-  --primary: #3b82f6;
-  --success: #22c55e;
-  --danger: #ef4444;
-  --warning: #f59e0b;
-  --text: #e5e7eb;
-  --muted: #94a3b8;
-}
-
-/* =========================
-   FIX TEXT YANG HILANG WARNA
-========================= */
-.card {
-  color: var(--text);
-}
-
-.card b {
-  color: #ffffff;
-}
-
-/* =========================
-   BADGE FIX (INI YANG KAMU KELUHAN)
+   BADGE STATUS
 ========================= */
 .badge {
-  display: inline-block;
   padding: 4px 10px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 600;
+  border-radius: 20px;
+  font-size: 11px;
+  display: inline-block;
 }
 
-.badge-green {
-  background: rgba(34,197,94,0.15);
-  color: var(--success);
-  border: 1px solid rgba(34,197,94,0.3);
-}
-
-.badge-red {
-  background: rgba(239,68,68,0.15);
-  color: var(--danger);
-  border: 1px solid rgba(239,68,68,0.3);
-}
-
-.badge-yellow {
-  background: rgba(245,158,11,0.15);
-  color: var(--warning);
-  border: 1px solid rgba(245,158,11,0.3);
-}
+.badge-green { background: #064e3b; color: #34d399; }
+.badge-red { background: #450a0a; color: #f87171; }
+.badge-yellow { background: #422006; color: #fbbf24; }
 
 /* =========================
-   BUTTON RESTORE (WARNA BALIK NORMAL)
+   MOBILE FIX
 ========================= */
-button {
-  background: linear-gradient(135deg, var(--primary), #6366f1);
-  color: white;
-  box-shadow: 0 8px 20px rgba(59,130,246,0.3);
-}
+@media (max-width: 768px) {
 
-/* tombol approve/reject biar jelas */
-button.approve {
-  background: linear-gradient(135deg, #22c55e, #16a34a);
-}
+  #content {
+    padding: 12px;
+  }
 
-button.reject {
-  background: linear-gradient(135deg, #ef4444, #dc2626);
+  .card {
+    padding: 12px;
+  }
+
+  button {
+    font-size: 14px;
+  }
+
+  table {
+    font-size: 12px;
+  }
 }
 
 /* =========================
-   CARD 3D BALIK HIDUP
+   ANIMATION HALUS
 ========================= */
 .card {
-  background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.08);
-  backdrop-filter: blur(14px);
-  box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+  animation: fade .25s ease;
 }
 
-/* =========================
-   TEXT FIX VISIBILITY
-========================= */
-h1,h2,h3,h4,p,span,td {
-  color: var(--text);
-}
-
-/* =========================
-   LINK FIX
-========================= */
-a {
-  color: var(--primary);
-}
-
-a:hover {
-  opacity: 0.8;
+@keyframes fade {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
 }
